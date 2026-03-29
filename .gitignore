@@ -1,5 +1,5 @@
-# Font files — included in private mirror only
-# fonts/
+# Font files — download separately from nerdfonts.com
+fonts/
 
 # macOS
 .DS_Store

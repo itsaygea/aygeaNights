@@ -21,9 +21,29 @@ Tokyo Night base with Aygea brand accent colors. Baby blue, sapphire, pink, silv
 
 See [TERMINAL-SETUP.md](TERMINAL-SETUP.md) for full step-by-step install instructions.
 
+## Install
+
+**One command:**
+```bash
+./install.sh
+```
+
+**Or remote (curl pipe):**
+```bash
+curl -fsSL https://raw.githubusercontent.com/itsaygea/aygeaNight/main/install.sh | bash
+```
+
+Flags: `--sudo` · `--skip-fonts` · `--skip-tmux` · `--skip-starship` · `--skip-fetch` · `--uninstall`
+
+The installer auto-detects your OS, installs all dependencies, and configures everything. It asks about sudo on Linux; defaults to user-level installs otherwise.
+
+See [TERMINAL-SETUP.md](TERMINAL-SETUP.md) for full step-by-step manual instructions.
+
+Run `./install.sh --help` for all options.
+
 ## Font
 
-This theme uses **JetBrainsMono Nerd Font**. It's not included in this repo — download it from [nerdfonts.com](https://www.nerdfonts.com/font-downloads).
+JetBrainsMono Nerd Font files are included in `fonts/JetBrainsMono/`. The installer copies them automatically.
 
 ## Colors
 

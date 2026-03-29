@@ -1,7 +1,10 @@
-# 🦊 AygeaNight Terminal Setup Guide
+# AygeaNight Terminal Setup Guide
 
 Tokyo Night base · Aygea brand accent colors
 Baby blue, sapphire, pink, silver — dark navy background
+
+> **The recommended way to install is the automated installer: `./install.sh`**
+> This guide covers the manual step-by-step process for reference or customization.
 
 ---
 
