@@ -524,14 +524,9 @@ max_lines=$(( info_n > art_n ? info_n : art_n ))
 for (( row=0; row<max_lines; row++ )); do
     aidx=$(( row - art_start ))
     idx=$(( row - info_start ))
-    # No art on this row AND no more art coming? Print info flush-left.
-    if (( aidx >= art_n || aidx < 0 )); then
-        if (( idx >= 0 && idx < info_n )); then printf '%s' "${INFO[$idx]}"; fi
-        printf '\n'
-        continue
-    fi
-    # Art present: pad + info at fixed column.
-    _pad "${ART[$aidx]}"
+    # Art cell: pad to fixed width so info column always aligns.
+    if (( aidx >= 0 && aidx < art_n )); then _pad "${ART[$aidx]}"
+    else printf '%*s' "$ART_W" ""; fi
     printf '%*s' "$GAP" ""
     if (( idx >= 0 && idx < info_n )); then printf '%s' "${INFO[$idx]}"; fi
     printf '\n'
