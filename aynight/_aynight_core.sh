@@ -238,7 +238,7 @@ get_uptime() {
         s=$(awk '{printf "%d",$1}' /proc/uptime 2>/dev/null) || s=0
     elif command -v sysctl >/dev/null 2>&1; then
         # macOS: kern.boottime = "{ sec = EPOCH, usec = ... } ..."
-        local boot; boot=$(sysctl -n kern.boottime 2>/dev/null | sed -nE 's/.*sec = ([0-9]+).*/\1/p')
+        local boot; boot=$(sysctl -n kern.boottime 2>/dev/null | sed -nE 's/\{ sec = ([0-9]+).*/\1/p')
         [[ "$boot" =~ ^[0-9]+$ ]] && s=$(( $(date +%s) - boot )) || s=0
     else printf 'N/A'; return; fi
     (( d = s/86400 )); (( s = s%86400 ))
