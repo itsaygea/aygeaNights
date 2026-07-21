@@ -590,7 +590,7 @@ do_uninstall() {
 # ══════════════════════════════════════════════════════════════════
 
 add_item() {
-    local label="$1" desc="$2" status="$3" selectable="${4:-1}" needs_sudo="${5:-0}" func="$6"
+    local label="$1" desc="$2" status="$3" selectable="${4:-1}" needs_sudo="${5:-0}" func="${6:-}"
     M_LABEL+=( "$label" )
     M_DESC+=( "$desc" )
     M_STATUS+=( "$status" )
@@ -608,9 +608,9 @@ add_item() {
 build_menu() {
     # 1. Nerd Font
     if detect_fonts_installed; then
-        add_item "Nerd Font" "JetBrainsMono Nerd Font" "already installed"
+        add_item "Nerd Font" "JetBrainsMono Nerd Font" "already installed" 1 0 "install_fonts"
     else
-        add_item "Nerd Font" "JetBrainsMono Nerd Font" "not installed"
+        add_item "Nerd Font" "JetBrainsMono Nerd Font" "not installed" 1 0 "install_fonts"
     fi
 
     # 2. iTerm2 colors (macOS only, non-selectable on Linux)
@@ -622,23 +622,23 @@ build_menu() {
 
     # 3. tmux config
     if detect_tmux_installed; then
-        add_item "tmux config" "~/.tmux.conf" "already installed"
+        add_item "tmux config" "~/.tmux.conf" "already installed" 1 0 "install_tmux"
     else
-        add_item "tmux config" "~/.tmux.conf" "not installed"
+        add_item "tmux config" "~/.tmux.conf" "not installed" 1 0 "install_tmux"
     fi
 
     # 4. Starship prompt
     if detect_starship_installed; then
-        add_item "Starship prompt" "~/.config/starship.toml" "already installed"
+        add_item "Starship prompt" "~/.config/starship.toml" "already installed" 1 0 "install_starship"
     else
-        add_item "Starship prompt" "~/.config/starship.toml" "not installed"
+        add_item "Starship prompt" "~/.config/starship.toml" "not installed" 1 0 "install_starship"
     fi
 
     # 5. Fetch script
     if detect_fetch_installed; then
-        add_item "Fetch script" "aygeafetch" "already installed"
+        add_item "Fetch script" "aygeafetch" "already installed" 1 0 "install_fetch"
     else
-        add_item "Fetch script" "aygeafetch" "not installed"
+        add_item "Fetch script" "aygeafetch" "not installed" 1 0 "install_fetch"
     fi
 
     # 6. Locale (Linux only, needs sudo)
