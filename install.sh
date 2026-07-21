@@ -498,15 +498,94 @@ EOF
         info "Backups saved with .ayn.bak.<ts> suffix. Disable: rm $pd"
         return 0
     fi
+    # Mode prompt: replace Ubuntu motd, or merge beneath it?
+    local mode="replace"
+    if [[ "${AYN_MOTD_MODE:-}" == "merge" ]]; then
+        mode="merge"
+    elif [[ "${AYN_MOTD_MODE:-}" != "replace" ]]; then
+        printf '%s  %sReplace the Ubuntu MOTD, or merge beneath it?%s\n' "$C_BOLD" "$C_SAPPHIRE" "$C_RESET"
+        printf '    1) Replace — only aynight fox + update/firmware notices\n'
+        printf '    2) Merge   — keep Ubuntu info, add aynight below it\n'
+        local m
+        while true; do
+            printf '%s  Choice [1]%s ' "$C_DIM" "$C_RESET"
+            read -r m < /dev/tty || m=""
+            case "${m:-1}" in
+                1) mode="replace"; break ;;
+                2) mode="merge"; break ;;
+                *) ;;
+            esac
+        done
+    fi
+
     maybe_sudo tee "$motd_dir/99-aygea" >/dev/null <<'EOF'
 #!/usr/bin/env bash
-# AygeaNight system fetch — shown at every login (SSH + console)
-command -v aynight >/dev/null 2>&1 && aynight --fox || true
+# AygeaNight MOTD — system fetch + compact update/firmware notices.
+# Shown at every login (SSH + console). Disable: chmod -x this file.
+RESET=$'\033[0m'; DIM=$'\033[38;2;105;122;150m'
+PINK=$'\033[38;2;216;140;168m'; BLUE=$'\033[38;2;175;203;255m'
+SILVER=$'\033[38;2;192;209;230m'
+
+# 1) the fox fetch
+command -v aynight >/dev/null 2>&1 && aynight --fox
+
+# 2) compact update / security / firmware notices (best effort, non-fatal)
+{
+    printf '\n'
+    # apt updates
+    if command -v apt >/dev/null 2>&1; then
+        n=$(apt list --upgradable 2>/dev/null | grep -c '/')
+        (( n > 0 )) && printf '%s  ↑ %d apt updates available%s (apt upgrade)\n' "$PINK" "$n" "$RESET"
+        # ESM/security (Ubuntu Pro) — needs ubuntu-security-status or pro
+        if command -v pro >/dev/null 2>&1; then
+            esm=$(pro security-status 2>/dev/null | awk '/ESM Apps/{print $1; exit}')
+            [[ -n "$esm" ]] && printf '%s  ⚠ %s additional security updates via ESM%s (Ubuntu Pro)\n' "$PINK" "$esm" "$RESET"
+        fi
+    elif command -v pacman >/dev/null 2>&1; then
+        n=$(pacman -Qu 2>/dev/null | grep -c .)
+        (( n > 0 )) && printf '%s  ↑ %d pacman updates available%s (pacman -Syu)\n' "$PINK" "$n" "$RESET"
+    elif command -v dnf >/dev/null 2>&1; then
+        n=$(dnf check-update 2>/dev/null | grep -cE '\.$')
+        (( n > 0 )) && printf '%s  ↑ %d dnf updates available%s (dnf upgrade)\n' "$PINK" "$n" "$RESET"
+    fi
+
+    # firmware (fwupd)
+    if command -v fwupdmgr >/dev/null 2>&1; then
+        fwn=$(fwupdmgr get-updates 2>/dev/null | grep -cE '^[0-9]+\.' || true)
+        (( ${fwn:-0} > 0 )) && printf '%s  ⚙ %s firmware update(s) available%s (fwupdmgr update)\n' "$BLUE" "$fwn" "$RESET"
+    fi
+
+    # reboot required (Linux)
+    if [[ -f /var/run/reboot-required ]]; then
+        printf '%s  ⟳ reboot required%s\n' "$PINK" "$RESET"
+    fi
+    printf '%s\n' "$RESET"
+} 2>/dev/null
 exit 0
 EOF
     maybe_sudo chmod +x "$motd_dir/99-aygea"
-    success "MOTD fetch installed to $motd_dir/99-aygea"
-    info "Backups saved with .ayn.bak.<ts> suffix. Disable: chmod -x $motd_dir/99-aygea"
+
+    # In replace mode: disable the noisy Ubuntu motd scripts (reversible).
+    # Backs them up by recording the list; --uninstall re-enables.
+    if [[ "$mode" == "replace" ]]; then
+        local disabled_list="/etc/update-motd.d/.ayn-disabled"
+        local noisy="00-header 10-help-text 50-landscape-sysinfo 50-motd-news 85-fwupd 91-contract-ua-esm-status 91-release-upgrade 92-unattended-upgrades 95-hwe-eol 97-overlayroot"
+        : > /tmp/.ayn-dlist.$$
+        for s in $noisy; do
+            if [[ -x "$motd_dir/$s" ]]; then
+                maybe_sudo chmod -x "$motd_dir/$s" 2>/dev/null && echo "$s" >> /tmp/.ayn-dlist.$$
+            fi
+        done
+        maybe_sudo cp /tmp/.ayn-dlist.$$ "$disabled_list" 2>/dev/null || true
+        rm -f /tmp/.ayn-dlist.$$
+        success "MOTD installed (replace mode) — fox + update notices"
+        info "Disabled Ubuntu motd scripts (list in $disabled_list). --uninstall re-enables them."
+    else
+        # merge mode: remove any prior disabled list so nothing stays off
+        maybe_sudo rm -f /etc/update-motd.d/.ayn-disabled 2>/dev/null || true
+        success "MOTD installed (merge mode) — aynight appended below Ubuntu info"
+    fi
+    info "Disable: chmod -x $motd_dir/99-aygea"
 }
 
 install_starship() {
@@ -644,6 +723,17 @@ do_uninstall() {
             info "Removed $f"
         fi
     done
+    # Re-enable Ubuntu motd scripts we disabled in replace mode (full restore)
+    local dlist="/etc/update-motd.d/.ayn-disabled"
+    if [[ -f "$dlist" ]]; then
+        local re=0
+        while IFS= read -r s; do
+            [[ -n "$s" ]] || continue
+            { chmod +x "/etc/update-motd.d/$s" 2>/dev/null || sudo chmod +x "/etc/update-motd.d/$s" 2>/dev/null; } && re=$((re+1)) || true
+        done < "$dlist"
+        { rm -f "$dlist" 2>/dev/null || sudo rm -f "$dlist" 2>/dev/null; } || true
+        (( re > 0 )) && success "Re-enabled $re Ubuntu motd script(s)"
+    fi
     # Restore newest /etc/motd backup if one exists
     local motd_bak
     motd_bak=$(ls -1t /etc/motd.ayn.bak.* 2>/dev/null | head -1)
@@ -949,6 +1039,8 @@ main() {
             --sudo)      USE_SUDO=1 ;;
             --uninstall) UNINSTALL=1 ;;
             --motd)      MOTD_ONLY=1 ;;
+            --motd-replace) MOTD_ONLY=1; AYN_MOTD_MODE=replace ;;
+            --motd-merge)   MOTD_ONLY=1; AYN_MOTD_MODE=merge ;;
             -h|--help)   usage ;;
             *)           warn "Unknown flag: $arg" ;;
         esac
