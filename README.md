@@ -30,7 +30,7 @@ Tokyo Night base with Aygea brand accent colors. Baby blue, sapphire, pink, silv
 **Or remote (curl pipe — no clone needed):**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/itsaygea/aygeaNight/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/itsaygea/aygeaNights/main/install.sh | bash
 ```
 
 Flags: `--sudo` · `--skip-fonts` · `--skip-tmux` · `--skip-starship` · `--skip-fetch` · `--uninstall`

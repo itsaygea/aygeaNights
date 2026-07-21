@@ -6,7 +6,7 @@
 set -euo pipefail
 
 VERSION="1.0.0"
-REPO="itsaygea/aygeaNight"
+REPO="itsaygea/aygeaNights"
 REPO_URL="https://github.com/${REPO}"
 MARKER_BEGIN="# >>> aygea-night >>>"
 MARKER_END="# <<< aygea-night <<<"
