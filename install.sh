@@ -1120,6 +1120,12 @@ main() {
             if [[ $USE_SUDO -eq 0 ]]; then
                 ask_yn "MOTD install needs sudo. Use sudo?" && USE_SUDO=1
             fi
+            # Ensure aynight binary is installed first (motd script calls it)
+            if ! command -v aynight >/dev/null 2>&1; then
+                info "Installing aynight first..."
+                ensure_local_bin
+                install_fetch
+            fi
             AYN_MOTD_CONFIRM=y install_motd
         else
             info "MOTD not supported on macOS"
