@@ -171,7 +171,7 @@ resolve_source() {
         fi
     fi
 
-    info "Downloading aygeaNight from GitHub..."
+    info "Downloading aygeaNights from GitHub..."
     TMPDIR_AYGEA=$(mktemp -d)
     local archive_url="${REPO_URL}/archive/refs/heads/main.tar.gz"
 
