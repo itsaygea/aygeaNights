@@ -237,8 +237,9 @@ get_uptime() {
     if [[ -r /proc/uptime ]]; then
         s=$(awk '{printf "%d",$1}' /proc/uptime 2>/dev/null) || s=0
     elif command -v sysctl >/dev/null 2>&1; then
-        s=$(sysctl -n kern.boottime 2>/dev/null | awk -F'[ =}]' '{print int($6)}') || s=0
-        [[ "$s" -gt 0 ]] && s=$(( $(date +%s) - s ))
+        # macOS: kern.boottime = "{ sec = EPOCH, usec = ... } ..."
+        local boot; boot=$(sysctl -n kern.boottime 2>/dev/null | sed -nE 's/.*sec = ([0-9]+).*/\1/p')
+        [[ "$boot" =~ ^[0-9]+$ ]] && s=$(( $(date +%s) - boot )) || s=0
     else printf 'N/A'; return; fi
     (( d = s/86400 )); (( s = s%86400 ))
     (( h = s/3600 ));  (( s = s%3600 )); (( m = s/60 ))
@@ -447,10 +448,10 @@ get_procs() {
     printf '%s' "${n:-N/A}"
 }
 
-# Logged-in user sessions (unique users)
+# Logged-in user sessions (matches `uptime` "N users" = session count)
 get_users() {
     local n=""
-    command -v who >/dev/null 2>&1 && n=$(who 2>/dev/null | awk '{print $1}' | sort -u | wc -l | tr -d ' ')
+    command -v who >/dev/null 2>&1 && n=$(who 2>/dev/null | wc -l | tr -d ' ')
     printf '%s' "${n:-0}"
 }
 
