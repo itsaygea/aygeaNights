@@ -1,23 +1,10 @@
 # AygeaNight
 
-Tokyo Night base with Aygea brand accent colors. Baby blue, sapphire, pink, silver on dark navy.
+A personal terminal theme — Tokyo Night base with Aygea brand accent colors. Baby blue, sapphire, pink, and silver on dark navy. Works on macOS, Ubuntu/Debian, and Arch/CachyOS/Manjaro, in zsh or bash.
 
-<img src="assets/tmux.png" alt="AygeaNight tmux theme" width="700">
+<img src="assets/tmux.png" alt="AygeaNight — tmux with system fetch" width="700">
 
-> **This is a personal terminal theme for my own machines.** It's not a framework or library — just a collection of config files I use daily. If it's useful to you, cool, but I'm not supporting it or taking requests.
-
-## What's included
-
-| File | What it does |
-|---|---|
-| `AygeaNight.itermcolors` | iTerm2 color scheme |
-| `tmux.conf` | tmux status bar and colors |
-| `starship.toml` | Shell prompt theme |
-| `fetch/aynight-macos.sh` | System fetch wrapper for macOS |
-| `fetch/aynight-ubuntu.sh` | System fetch wrapper for Ubuntu / Debian / Pop |
-| `fetch/aynight-arch.sh` | System fetch wrapper for Arch / CachyOS / Manjaro |
-| `fetch/_aynight_core.sh` | Shared fetch engine (art, info, dot-meters) |
-| `fetch/art/*.txt` | Dot-art fox + face designs (regular + inverted) |
+> This is a personal terminal theme for my own machines. It's not a framework or library — just a collection of config files I use daily. If it's useful to you, cool, but I'm not supporting it or taking requests.
 
 ## Install
 
@@ -33,15 +20,15 @@ Tokyo Night base with Aygea brand accent colors. Baby blue, sapphire, pink, silv
 curl -fsSL https://raw.githubusercontent.com/itsaygea/aygeaNights/main/install.sh | bash
 ```
 
+The installer auto-detects your OS (macOS, Ubuntu/Debian, Arch/CachyOS/Manjaro) and shell (zsh or bash), installs dependencies, and configures tmux, Starship, fonts, and the system fetch. It asks about sudo on Linux; defaults to user-level installs otherwise.
+
 Flags: `--sudo` · `--motd` · `--skip-fonts` · `--skip-tmux` · `--skip-starship` · `--skip-fetch` · `--uninstall`
 
-The installer auto-detects your OS (macOS, Ubuntu/Debian, Arch/CachyOS/Manjaro) and your shell (zsh or bash), installs dependencies, and configures everything. It asks about sudo on Linux; defaults to user-level installs otherwise. The fetch step builds a single self-contained `aynight` binary in `~/.local/bin` (engine + art inlined — no extra files scattered around).
+For the full step-by-step manual process, see [TERMINAL-SETUP.md](TERMINAL-SETUP.md). Run `./install.sh --help` for all options.
 
-See [TERMINAL-SETUP.md](TERMINAL-SETUP.md) for the full step-by-step manual process, and run `./install.sh --help` for all options.
+## Change the fetch art
 
-## Fetch art variants
-
-`aynight` shows a dot-art laying fox by default. Switch designs with a flag or env var:
+`aynight` shows a dot-art laying fox by default. Switch designs with a flag:
 
 ```bash
 aynight --fox        # laying fox        (default)
@@ -49,17 +36,29 @@ aynight --fox-inv    # inverted laying fox
 aynight --face       # bordered fox face
 aynight --face-inv   # inverted blob face
 aynight --art face   # same as --face
+aynight --help       # all options
 ```
 
 Or set it permanently: `export AYNIGHT_ART=face` in your shell rc. The raw art lives in `fetch/art/*.txt` — edit those and the dev script picks up changes; re-run the installer to bake edits into the installed binary.
 
-The fetch shows Ubuntu-MOTD-style info: pending **updates** count (apt/pacman/dnf/brew — green when 0, pink when pending), memory/disk/swap meters, load average, process count, logged-in users, and IPv4/IPv6 addresses.
+Optional **Login MOTD** step (`--motd`, Linux + sudo) runs `aynight` at every SSH/console login. It asks Yes/No before writing, backs up `/etc/motd`, and `--uninstall` restores it.
 
-Optional **Login MOTD** step (Linux, sudo) drops a script at `/etc/update-motd.d/99-aygea` (Ubuntu/Debian) or `/etc/profile.d/aynight-motd.sh` (Arch/CachyOS) so `aynight` runs at every SSH/console login — like the distro welcome banner, but yours. It asks Yes/No before writing, backs up `/etc/motd` to `.ayn.bak.<ts>`, and `--uninstall` restores it. Re-enable later with `./install.sh --motd`.
+## What's included
+
+| File | What it does |
+|---|---|
+| `AygeaNight.itermcolors` | iTerm2 color scheme |
+| `tmux.conf` | tmux status bar and colors |
+| `starship.toml` | Shell prompt theme |
+| `fetch/aynight-macos.sh` | System fetch wrapper for macOS |
+| `fetch/aynight-ubuntu.sh` | System fetch wrapper for Ubuntu / Debian / Pop |
+| `fetch/aynight-arch.sh` | System fetch wrapper for Arch / CachyOS / Manjaro |
+| `fetch/_aynight_core.sh` | Shared fetch engine (art, info, dot-meters) |
+| `fetch/art/*.txt` | Dot-art fox + face designs (regular + inverted) |
 
 ## Font
 
-JetBrainsMono Nerd Font. If you clone the repo, the files are bundled in `fonts/JetBrainsMono/` and the installer copies them. If you curl-pipe install (no clone), the installer downloads the font from [Nerd Fonts](https://www.nerdfonts.com/) automatically. Either way: set **JetBrainsMono Nerd Font** in your terminal emulator after install.
+JetBrainsMono Nerd Font. Bundled in `fonts/JetBrainsMono/` if you clone; downloaded automatically from [Nerd Fonts](https://www.nerdfonts.com/) if you curl-pipe. Either way: set **JetBrainsMono Nerd Font** in your terminal emulator after install.
 
 ## Colors
 
@@ -71,6 +70,9 @@ Background: Tokyo Night base `#0F1020`
 
 | | |
 |---|---|
-| tmux | `assets/tmux.png` |
-| system fetch | _(add `assets/fetch.png` after installing on a system — `aynight --fox`)_ |
-
+| tmux + fetch | `assets/tmux.png` |
+| tmux (tabs) | `assets/tmux_1.png` |
+| fox | `assets/fox.png` |
+| fox (inverted) | `assets/fox-inv.png` |
+| face | `assets/face.png` |
+| face (inverted) | `assets/face-inv.png` |
