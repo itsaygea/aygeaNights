@@ -609,7 +609,7 @@ EOF
     # Backs them up by recording the list; --uninstall re-enables.
     if [[ "$mode" == "replace" ]]; then
         local disabled_list="/etc/update-motd.d/.ayn-disabled"
-        local noisy="00-header 10-help-text 50-landscape-sysinfo 50-motd-news 85-fwupd 91-contract-ua-esm-status 91-release-upgrade 92-unattended-upgrades 95-hwe-eol 97-overlayroot"
+        local noisy="00-header 10-help-text 50-landscape-sysinfo 50-motd-news 85-fwupd 90-updates-available 91-contract-ua-esm-status 91-release-upgrade 92-unattended-upgrades 95-hwe-eol 97-overlayroot 98-fsck-at-reboot 98-reboot-required"
         : > /tmp/.ayn-dlist.$$
         for s in $noisy; do
             if [[ -x "$motd_dir/$s" ]]; then
