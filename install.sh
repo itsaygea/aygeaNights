@@ -116,12 +116,14 @@ ${C_SAPPHIRE}Usage:${C_RESET}
 
 ${C_SAPPHIRE}Flags:${C_RESET}
   --sudo            Use sudo for system-wide installs (non-interactive)
+  --motd            Install just the login MOTD (Linux, prompts for sudo)
   --uninstall       Remove AygeaNight (restore backups)
   -h, --help        Show this help
 
 ${C_SAPPHIRE}Examples:${C_RESET}
   ./install.sh                    # interactive menu
   ./install.sh --sudo             # use sudo without prompting
+  ./install.sh --motd             # add login MOTD only
   curl -fsSL <url>/install.sh | bash   # remote install
 EOF
     exit 0
@@ -313,7 +315,7 @@ detect_starship_installed() {
 }
 
 detect_fetch_installed() {
-    [[ -x "$LOCAL_BIN/aygeafetch" ]]
+    [[ -x "$LOCAL_BIN/aynight" ]]
 }
 
 detect_locale_installed() {
@@ -432,33 +434,61 @@ install_locale() {
     success "Locale configured (log out and back in to fully apply)"
 }
 
-# ── System MOTD: show aygeafetch at every login (Linux, needs sudo) ──
+# ── System MOTD: show aynight at every login (Linux, needs sudo) ──
+# Backs up /etc/motd + any prior aynight/aygea motd file before writing.
+# Prompted at install time; rerun via `install.sh --motd` or `./install.sh --motd`.
 install_motd() {
     [[ "$OS" == "macos" ]] && { info "MOTD install skipped (macOS)"; return 0; }
+
+    # Already installed? Ask if they want to skip.
+    if detect_motd_installed; then
+        info "Login MOTD already installed"
+        return 0
+    fi
+
+    # Prompt (unless --motd flag forced it, in which case $AYN_MOTD_CONFIRM=y)
+    if [[ "${AYN_MOTD_CONFIRM:-}" != "y" ]]; then
+        if ! ask_yn "Install login MOTD? (writes /etc — shows aynight at every SSH/console login)"; then
+            info "MOTD install skipped. Re-run with: aynight not available — use './install.sh --motd'"
+            return 0
+        fi
+    fi
+
+    local stamp; stamp=$(date +%Y%m%d%H%M%S)
     local motd_dir="/etc/update-motd.d"
+
+    # Back up existing motd artifacts (best effort)
+    if [[ -f /etc/motd ]]; then
+        maybe_sudo cp /etc/motd "/etc/motd.ayn.bak.$stamp" 2>/dev/null || true
+    fi
+    if [[ -f "$motd_dir/99-aygea" ]]; then
+        maybe_sudo cp "$motd_dir/99-aygea" "$motd_dir/99-aygea.ayn.bak.$stamp" 2>/dev/null || true
+    fi
+
     if [[ ! -d "$motd_dir" ]]; then
         # Arch/CachyOS: no update-motd.d by default; wire via /etc/profile.d instead
-        local pd="/etc/profile.d/aygea-motd.sh"
-        info "No $motd_dir — installing login fetch to $pd (runs on shell login)"
+        local pd="/etc/profile.d/aynight-motd.sh"
+        [[ -f "$pd" ]] && maybe_sudo cp "$pd" "$pd.ayn.bak.$stamp" 2>/dev/null || true
         maybe_sudo tee "$pd" >/dev/null <<'EOF'
 # AygeaNight login fetch — show on first interactive login shell
-if [[ -n "$SSH_CONNECTION" || -z "$DISPLAY" ]] && [[ -t 1 ]] && [[ -z "$AYGEA_MOTD_SHOWN" ]]; then
-    command -v aygeafetch >/dev/null 2>&1 && aygeafetch --fox
-    export AYGEA_MOTD_SHOWN=1
+if [[ -n "$SSH_CONNECTION" || -z "$DISPLAY" ]] && [[ -t 1 ]] && [[ -z "$AYNIGHT_MOTD_SHOWN" ]]; then
+    command -v aynight >/dev/null 2>&1 && aynight --fox
+    export AYNIGHT_MOTD_SHOWN=1
 fi
 EOF
         success "Login fetch installed to $pd"
+        info "Backups saved with .ayn.bak.<ts> suffix. Disable: rm $pd"
         return 0
     fi
     maybe_sudo tee "$motd_dir/99-aygea" >/dev/null <<'EOF'
 #!/usr/bin/env bash
 # AygeaNight system fetch — shown at every login (SSH + console)
-command -v aygeafetch >/dev/null 2>&1 && aygeafetch --fox || true
+command -v aynight >/dev/null 2>&1 && aynight --fox || true
 exit 0
 EOF
     maybe_sudo chmod +x "$motd_dir/99-aygea"
     success "MOTD fetch installed to $motd_dir/99-aygea"
-    info "Shows at next login (SSH/console). Disable: chmod -x $motd_dir/99-aygea"
+    info "Backups saved with .ayn.bak.<ts> suffix. Disable: chmod -x $motd_dir/99-aygea"
 }
 
 install_starship() {
@@ -511,33 +541,33 @@ install_fetch() {
 
     # ── OS wrapper selection ──
     case "$OS" in
-        macos) wrapper="aygeafetch-macos.sh" ;;
-        ubuntu) wrapper="aygeafetch-ubuntu.sh" ;;
-        arch)   wrapper="aygeafetch-arch.sh" ;;
+        macos) wrapper="aynight-macos.sh" ;;
+        ubuntu) wrapper="aynight-ubuntu.sh" ;;
+        arch)   wrapper="aynight-arch.sh" ;;
     esac
     src="$SCRIPT_DIR/fetch/$wrapper"
-    core="$SCRIPT_DIR/fetch/_aygeafetch_core.sh"
+    core="$SCRIPT_DIR/fetch/_aynight_core.sh"
     if [[ ! -f "$src" || ! -f "$core" ]]; then
-        warn "Fetch files missing ($wrapper / _aygeafetch_core.sh)"
+        warn "Fetch files missing ($wrapper / _aynight_core.sh)"
         return 1
     fi
 
     # ── Build a single self-contained binary: wrapper + inlined core ──
-    # Strip the wrapper's "source _aygeafetch_core.sh" block, then append
+    # Strip the wrapper's "source _aynight_core.sh" block, then append
     # the core body. Art is embedded in the core as fallback arrays, so no
     # external files are needed — one file in ~/.local/bin, nothing else.
     {
         # wrapper lines, skipping the _aygea_core source block
         awk '/^# ── Source the shared engine/{skip=1} skip{next} {print}' "$src"
         printf '\n# ════════════════════════════════════════════════════════════════\n'
-        printf '# %s — inlined engine (art embedded, no external files) \n' "aygeafetch core"
+        printf '# %s — inlined engine (art embedded, no external files) \n' "aynight core"
         printf '# ════════════════════════════════════════════════════════════════\n'
         # core body, skipping its shebang + header comment block
         awk 'f{print} /^export LANG=en_US.UTF-8$/{print; f=1}' "$core"
-    } > "$LOCAL_BIN/aygeafetch"
-    chmod +x "$LOCAL_BIN/aygeafetch"
-    ensure_rc_line "$rc" 'aygeafetch' bottom "aygea-night fetch"
-    success "aygeafetch installed (single binary) to $LOCAL_BIN/aygeafetch"
+    } > "$LOCAL_BIN/aynight"
+    chmod +x "$LOCAL_BIN/aynight"
+    ensure_rc_line "$rc" 'aynight' bottom "aygea-night fetch"
+    success "aynight installed (single binary) to $LOCAL_BIN/aynight"
 }
 
 install_iterm_colors() {
@@ -581,22 +611,27 @@ do_uninstall() {
         info "Removed ~/.config/starship.toml"
     fi
 
-    rm -f "$LOCAL_BIN/aygeafetch"
-    info "Removed $LOCAL_BIN/aygeafetch"
-    rm -f "$HOME/aygeafetch.zsh" 2>/dev/null || true  # legacy path
+    rm -f "$LOCAL_BIN/aynight"
+    info "Removed $LOCAL_BIN/aynight"
+    rm -f "$HOME/aynight.zsh" 2>/dev/null || true  # legacy path
     if [[ -d "$HOME/.local/share/aygea" ]]; then       # legacy layout
         rm -rf "$HOME/.local/share/aygea"
         info "Removed $HOME/.local/share/aygea"
     fi
 
-    # Remove MOTD/login-fetch (best effort, may need sudo)
-    if [[ -f /etc/update-motd.d/99-aygea ]]; then
-        rm -f /etc/update-motd.d/99-aygea 2>/dev/null || sudo rm -f /etc/update-motd.d/99-aygea 2>/dev/null || true
-        info "Removed /etc/update-motd.d/99-aygea"
-    fi
-    if [[ -f /etc/profile.d/aygea-motd.sh ]]; then
-        rm -f /etc/profile.d/aygea-motd.sh 2>/dev/null || sudo rm -f /etc/profile.d/aygea-motd.sh 2>/dev/null || true
-        info "Removed /etc/profile.d/aygea-motd.sh"
+    # Remove MOTD/login-fetch (best effort, may need sudo) + restore backups
+    for f in /etc/update-motd.d/99-aygea /etc/profile.d/aynight-motd.sh /etc/profile.d/aygea-motd.sh; do
+        if [[ -f "$f" ]]; then
+            { rm -f "$f" 2>/dev/null || sudo rm -f "$f" 2>/dev/null; } || true
+            info "Removed $f"
+        fi
+    done
+    # Restore newest /etc/motd backup if one exists
+    local motd_bak
+    motd_bak=$(ls -1t /etc/motd.ayn.bak.* 2>/dev/null | head -1)
+    if [[ -n "$motd_bak" ]]; then
+        { cp "$motd_bak" /etc/motd 2>/dev/null || sudo cp "$motd_bak" /etc/motd 2>/dev/null; } && \
+            success "Restored /etc/motd from $motd_bak" || true
     fi
 
     if [[ "$OS" == "macos" ]]; then
@@ -680,9 +715,9 @@ build_menu() {
 
     # 5. Fetch script
     if detect_fetch_installed; then
-        add_item "Fetch script" "aygeafetch" "already installed" 1 0 "install_fetch"
+        add_item "Fetch script" "aynight" "already installed" 1 0 "install_fetch"
     else
-        add_item "Fetch script" "aygeafetch" "not installed" 1 0 "install_fetch"
+        add_item "Fetch script" "aynight" "not installed" 1 0 "install_fetch"
     fi
 
     # 6. Locale (Linux only, needs sudo)
@@ -694,12 +729,12 @@ build_menu() {
         fi
     fi
 
-    # 7. System MOTD (Linux, needs sudo) — aygeafetch at every login
+    # 7. System MOTD (Linux, needs sudo) — aynight at every login
     if [[ "$OS" != "macos" ]]; then
         if detect_motd_installed; then
-            add_item "Login MOTD" "aygeafetch at login" "already installed" 1 1 "install_motd"
+            add_item "Login MOTD" "aynight at login" "already installed" 1 1 "install_motd"
         else
-            add_item "Login MOTD" "aygeafetch at login" "not installed" 1 1 "install_motd"
+            add_item "Login MOTD" "aynight at login" "not installed" 1 1 "install_motd"
         fi
     fi
 }
@@ -889,11 +924,13 @@ menu_loop() {
 # ── Main ────────────────────────────────────────────────────────
 # ══════════════════════════════════════════════════════════════════
 main() {
-    # Minimal flag parsing (--uninstall, --help, --sudo)
+    # Minimal flag parsing (--uninstall, --help, --sudo, --motd)
+    MOTD_ONLY=0
     for arg in "$@"; do
         case "$arg" in
             --sudo)      USE_SUDO=1 ;;
             --uninstall) UNINSTALL=1 ;;
+            --motd)      MOTD_ONLY=1 ;;
             -h|--help)   usage ;;
             *)           warn "Unknown flag: $arg" ;;
         esac
@@ -901,6 +938,20 @@ main() {
 
     detect_os
     resolve_source
+
+    # --motd: jump straight to MOTD install (skips menu)
+    if [[ $MOTD_ONLY -eq 1 ]]; then
+        banner
+        if [[ "$OS" != "macos" ]]; then
+            if [[ $USE_SUDO -eq 0 ]]; then
+                ask_yn "MOTD install needs sudo. Use sudo?" && USE_SUDO=1
+            fi
+            AYN_MOTD_CONFIRM=y install_motd
+        else
+            info "MOTD not supported on macOS"
+        fi
+        exit 0
+    fi
 
     if [[ $UNINSTALL -eq 1 ]]; then
         do_uninstall

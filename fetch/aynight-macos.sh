@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # ╭──────────────────────────────────────────────────────────────╮
-# │  aygeafetch-arch.sh · Arch Linux / CachyOS / Manjaro wrapper  │
+# │  aynight-macos.sh · macOS wrapper                           │
 # │  Defines OS label + pkg count, then sources the shared core.  │
 # ╰──────────────────────────────────────────────────────────────╯
 
 # ── Flags: pick the art variant ─────────────────────────────────
 _aygea_usage() {
     cat <<EOF
-AygeaNight system fetch (Arch / CachyOS / Manjaro)
+AygeaNight system fetch (macOS)
 
-Usage: aygeafetch [option]
+Usage: aynight [option]
   --fox          laying fox        (default)
   --fox-inv      inverted laying fox
   --face         bordered fox face
@@ -17,48 +17,45 @@ Usage: aygeafetch [option]
   --art <name>   fox | fox-inv | face | face-inv
   -h, --help     show this help
 
-Env:  AYGEAFETCH_ART=<name>   (flag overrides env)
+Env:  AYNIGHT_ART=<name>   (flag overrides env)
 EOF
 }
 for _a in "$@"; do
     case "$_a" in
-        --fox|--fox-inv|--face|--face-inv) AYGEAFETCH_ART="${_a#--}" ;;
-        --art) shift; AYGEAFETCH_ART="$1" ;;
-        --art=*) AYGEAFETCH_ART="${_a#--art=}" ;;
+        --fox|--fox-inv|--face|--face-inv) AYNIGHT_ART="${_a#--}" ;;
+        --art) shift; AYNIGHT_ART="$1" ;;
+        --art=*) AYNIGHT_ART="${_a#--art=}" ;;
         -h|--help) _aygea_usage; exit 0 ;;
-        *) printf 'aygeafetch: unknown option %s\n' "$_a" >&2; _aygea_usage; exit 2 ;;
+        *) printf 'aynight: unknown option %s\n' "$_a" >&2; _aygea_usage; exit 2 ;;
     esac
 done
-export AYGEAFETCH_ART
+export AYNIGHT_ART
 
-AYGEAFETCH_OS="Arch"
+AYNIGHT_OS="macOS"
 
 get_os() {
-    local name=""
-    if [[ -f /etc/os-release ]]; then
-        while IFS='=' read -r key val; do
-            if [[ "$key" == "PRETTY_NAME" ]]; then name="${val//\"/}"; break; fi
-        done < /etc/os-release
-    fi
-    printf '%s' "${name:-Arch Linux}"
+    local name ver
+    name=$(sw_vers -productName 2>/dev/null) || name="macOS"
+    ver=$(sw_vers -productVersion 2>/dev/null) || ver=""
+    printf '%s %s' "$name" "$ver"
 }
 
 get_pkgs() {
     local n
-    n=$(pacman -Qq 2>/dev/null | wc -l | tr -d ' ') || n=0
+    n=$(brew list --formula 2>/dev/null | wc -l | tr -d ' ')
     printf '%s' "${n:-N/A}"
 }
 
 # ── Source the shared engine ────────────────────────────────────
 _aygea_core=""
 for _cand in \
-    "$(dirname "${BASH_SOURCE[0]:-$0}")/_aygeafetch_core.sh" \
-    "$HOME/.local/share/aygea/_aygeafetch_core.sh" \
-    "$HOME/.config/aygea/_aygeafetch_core.sh"; do
+    "$(dirname "${BASH_SOURCE[0]:-$0}")/_aynight_core.sh" \
+    "$HOME/.local/share/aygea/_aynight_core.sh" \
+    "$HOME/.config/aygea/_aynight_core.sh"; do
     [[ -f "$_cand" ]] && { _aygea_core="$_cand"; break; }
 done
 if [[ -z "$_aygea_core" ]]; then
-    printf 'aygeafetch: core engine not found\n' >&2; exit 1
+    printf 'aynight: core engine not found\n' >&2; exit 1
 fi
-# shellcheck source=_aygeafetch_core.sh
+# shellcheck source=_aynight_core.sh
 source "$_aygea_core"

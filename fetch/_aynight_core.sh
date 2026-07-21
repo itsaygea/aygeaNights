@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ╭──────────────────────────────────────────────────────────────╮
-# │  _aygeafetch_core.sh · AygeaNight fetch · shared engine      │
+# │  _aynight_core.sh · AygeaNight fetch · shared engine      │
 # │  Block-art fox + sectioned info + dot meters                 │
 # │                                                              │
 # │  NOT standalone. Sourced by the OS wrappers:                 │
-# │    fetch/aygeafetch-arch.sh   fetch/aygeafetch-ubuntu.sh     │
-# │    fetch/aygeafetch.zsh                                    │
+# │    fetch/aynight-arch.sh   fetch/aynight-ubuntu.sh     │
+# │    fetch/aynight.zsh                                    │
 # │  Each wrapper must define, before sourcing this file:        │
-# │    AYGEAFETCH_OS   short label e.g. "Arch", "macOS"          │
+# │    AYNIGHT_OS   short label e.g. "Arch", "macOS"          │
 # │    get_os()        full OS string                            │
 # │    get_pkgs()      installed package count                   │
 # ╰──────────────────────────────────────────────────────────────╯
@@ -37,10 +37,10 @@ dim=$(_c 105 122 150)    # dim text
 
 # ════════════════════════════════════════════════════════════════
 # ASCII art — dot-art braille foxes (regular + inverted variants).
-#   AYGEAFETCH_ART=fox        regular laying fox   (default)
-#   AYGEAFETCH_ART=fox-inv    inverted laying fox
-#   AYGEAFETCH_ART=face       regular bordered face
-#   AYGEAFETCH_ART=face-inv   inverted blob face
+#   AYNIGHT_ART=fox        regular laying fox   (default)
+#   AYNIGHT_ART=fox-inv    inverted laying fox
+#   AYNIGHT_ART=face       regular bordered face
+#   AYNIGHT_ART=face-inv   inverted blob face
 #
 # Loaded from fetch/art/{fox,fox-inverted,face,face-inverted}.txt if
 # present (edit those files to recolor/reshape without touching code).
@@ -179,7 +179,7 @@ FACE_INV+=("${baby}⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛�
 
 # ── Select + load the chosen art into ART ───────────────────────
 declare -a ART
-case "${AYGEAFETCH_ART:-fox}" in
+case "${AYNIGHT_ART:-fox}" in
     fox-inv)  _aygea_load_art fox-inverted.txt   ART FOX_INV ;;
     face)     _aygea_load_art face.txt            ART FACE ;;
     face-inv) _aygea_load_art face-inverted.txt   ART FACE_INV ;;
@@ -254,6 +254,7 @@ get_cpu() {
 _gpu_short() {
     local raw="$1"
     local low; low=$(printf '%s' "$raw" | tr '[:upper:]' '[:lower:]')
+
     local vendor=""
     case "$low" in
         *nvidia*|*geforce*|*quadro*|*rtx*|*gtx*)   vendor="NVIDIA" ;;
@@ -261,6 +262,17 @@ _gpu_short() {
         *apple*|*m1*|*m2*|*m3*|*m4)                  vendor="Apple" ;;
         *advanced\ micro*|*\ amd/*|*radeon*|*navi*|*\.amd\.com*|*amd/ati*) vendor="AMD" ;;
     esac
+
+    # No recognized vendor → likely a VM/container virtual adapter
+    # (QEMU stdvga "Device [1234:1111]", Cirrus, Bochs, VirtIO, VMware SVGA).
+    # Real passthrough cards are caught above (AMD/NVIDIA/Intel strings).
+    if [[ -z "$vendor" ]]; then
+        case "$low" in
+            *device*|*bochs*|*cirrus*|*qemu*|*virtio*|*vmware*|*svga*|*basic\ display*|*\[*:*\]*)
+                printf 'N/A'; return ;;
+        esac
+    fi
+
 
     # Prefer the LAST [bracket] (chip/model), cut at first '/', trim. If that
     # bracket is just a vendor tag ("[AMD/ATI]" on AMD APU lines like
