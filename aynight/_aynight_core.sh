@@ -336,8 +336,8 @@ get_ram_str() {
     elif command -v vm_stat >/dev/null 2>&1 && command -v sysctl >/dev/null 2>&1; then
         local pgsize pages_free pages_act pages_inact pages_wired
         pgsize=$(sysctl -n hw.pagesize 2>/dev/null)
-        pages_act=$(vm_stat 2>/dev/null | awk '/Pages active/{gsub(/\./,"",$3);print $3}')
-        pages_wired=$(vm_stat 2>/dev/null | awk '/Pages wired/{gsub(/\./,"",$3);print $3}')
+        pages_act=$(vm_stat 2>/dev/null | awk '/Pages active/{gsub(/[^0-9]/,"",$0); print}')
+        pages_wired=$(vm_stat 2>/dev/null | awk '/Pages wired down:/{gsub(/[^0-9]/,"",$0); print}')
         pages_act=${pages_act:-0}; pages_wired=${pages_wired:-0}; pgsize=${pgsize:-0}
         tot_kb=$(sysctl -n hw.memsize 2>/dev/null)
         used_kb=$(( (pages_act + pages_wired) * pgsize / 1024 ))
@@ -352,31 +352,53 @@ get_ram_str() {
 
 # Disk: used / total on / (or root vol) + pct.
 get_disk_str() {
-    local line used total pct
-    if line=$(df -h / 2>/dev/null | awk 'NR==2{print $3"\t"$2"\t"$5}'); then
-        read -r used total pct <<< "$line"
-        pct="${pct%\%}"
-    else printf 'N/A\t0'; return; fi
-    printf '%s / %s\t%s' "${used:-N/A}" "${total:-N/A}" "${pct:-0}"
+    local used total pct
+    # Parse Size + Used (human form like 13G), compute pct ourselves so
+    # APFS's misleading "Capacity" column doesn't lie.
+    local raw
+    raw=$(df -h / 2>/dev/null | awk 'NR>1 && /\/$| $/{print $2" "$3; exit}')
+    total=${raw% *}
+    used=${raw#* }
+    if [[ -z "$total$used" ]]; then printf 'N/A\t0'; return; fi
+    # convert to bytes (handle G/M/T/K/i variants) for pct
+    local tb ub
+    tb=$(echo "$total" | awk '{s=$0; gsub(/i/,"",s); u=substr(s,length(s),1); n=substr(s,1,length(s)-1)+0;
+        if(u=="T")n*=1099511627776; else if(u=="G")n*=1073741824; else if(u=="M")n*=1048576; else if(u=="K")n*=1024; else n=s+0; printf "%.0f",n}')
+    ub=$(echo "$used"  | awk '{s=$0; gsub(/i/,"",s); u=substr(s,length(s),1); n=substr(s,1,length(s)-1)+0;
+        if(u=="T")n*=1099511627776; else if(u=="G")n*=1073741824; else if(u=="M")n*=1048576; else if(u=="K")n*=1024; else n=s+0; printf "%.0f",n}')
+    (( tb > 0 )) && pct=$(( ub * 100 / tb )) || pct=0
+    printf '%s / %s\t%s' "${used:-N/A}" "${total:-N/A}" "$pct"
 }
 
 # IPv4 of first non-loopback interface (Linux ip / macOS ipconfig)
 get_ipv4() {
     local ip=""
-    if command -v ip >/dev/null 2>&1; then
+    if [[ "$(uname -s 2>/dev/null)" == "Darwin" ]]; then
+        # macOS: find first active non-loopback iface, get its IPv4
+        local iface addr
+        iface=$(route -n get default 2>/dev/null | awk '/interface:/{print $2; exit}')
+        [[ -z "$iface" ]] && iface=en0
+        addr=$(ipconfig getifaddr "$iface" 2>/dev/null)
+        [[ -n "$addr" ]] && ip="$iface $addr"
+    elif command -v ip >/dev/null 2>&1; then
         ip=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $2, $4}' | head -1)
     elif command -v hostname >/dev/null 2>&1; then
         ip=$(hostname -I 2>/dev/null | awk '{print $1}')
         [[ -n "$ip" ]] && ip="(default) $ip"
     fi
-    [[ -z "$ip" ]] && command -v ipconfig >/dev/null 2>&1 && ip="en0 $(ipconfig getifaddr en0 2>/dev/null)"
     printf '%s' "${ip:-N/A}"
 }
 
 # IPv6 of first non-loopback global interface
 get_ipv6() {
     local ip=""
-    if command -v ip >/dev/null 2>&1; then
+    if [[ "$(uname -s 2>/dev/null)" == "Darwin" ]]; then
+        local iface
+        iface=$(route -n get default 2>/dev/null | awk '/interface:/{print $2; exit}')
+        [[ -z "$iface" ]] && iface=en0
+        ip=$(ifconfig "$iface" 2>/dev/null | awk '/inet6/{print $2; exit}')
+        [[ "$ip" == fe80* ]] && ip=$(ifconfig "$iface" 2>/dev/null | awk '/inet6/{print $2}' | grep -v '^fe80' | head -1)
+    elif command -v ip >/dev/null 2>&1; then
         ip=$(ip -6 -o addr show scope global 2>/dev/null | awk '{print $2, $4}' | head -1)
     fi
     [[ -z "$ip" ]] && { printf 'N/A'; return; }
