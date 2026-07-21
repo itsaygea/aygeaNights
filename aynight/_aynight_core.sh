@@ -336,11 +336,17 @@ get_ram_str() {
     elif command -v vm_stat >/dev/null 2>&1 && command -v sysctl >/dev/null 2>&1; then
         local pgsize pages_free pages_act pages_inact pages_wired
         pgsize=$(sysctl -n hw.pagesize 2>/dev/null)
-        pages_act=$(vm_stat 2>/dev/null | awk '/Pages active/{gsub(/[^0-9]/,"",$0); print}')
-        pages_wired=$(vm_stat 2>/dev/null | awk '/Pages wired down:/{gsub(/[^0-9]/,"",$0); print}')
-        pages_act=${pages_act:-0}; pages_wired=${pages_wired:-0}; pgsize=${pgsize:-0}
+        # macOS "Memory Used" ≈ active + wired + compressor + speculative
+        # (matches Activity Monitor headline; inactive/cached/free excluded)
+        local pa pw pc ps
+        pa=$(vm_stat 2>/dev/null | awk '/Pages active/{gsub(/[^0-9]/,"",$0); print}')
+        pw=$(vm_stat 2>/dev/null | awk '/Pages wired down:/{gsub(/[^0-9]/,"",$0); print}')
+        pc=$(vm_stat 2>/dev/null | awk '/occupied by compressor/{gsub(/[^0-9]/,"",$0); print}')
+        ps=$(vm_stat 2>/dev/null | awk '/Pages speculative/{gsub(/[^0-9]/,"",$0); print}')
+        pgsize=$(sysctl -n hw.pagesize 2>/dev/null)
+        pa=${pa:-0}; pw=${pw:-0}; pc=${pc:-0}; ps=${ps:-0}; pgsize=${pgsize:-0}
         tot_kb=$(( $(sysctl -n hw.memsize 2>/dev/null || echo 0) / 1024 ))  # hw.memsize is bytes
-        used_kb=$(( (pages_act + pages_wired) * pgsize / 1024 ))
+        used_kb=$(( (pa + pw + pc + ps) * pgsize / 1024 ))
         (( tot_kb > 0 )) || tot_kb=$used_kb
     else printf 'N/A\t0'; return; fi
     local ug tg pct
