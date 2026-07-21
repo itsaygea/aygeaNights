@@ -61,15 +61,16 @@ _aygea_load_art() {  # filename, array_name, embedded_array_name
     local file="$1" outvar="$2" emb="$3" f=""
     [[ -n "$_aygea_art_dir" && -f "$_aygea_art_dir/$file" ]] && f="$_aygea_art_dir/$file"
     if [[ -n "$f" ]]; then
-        local line
         eval "$outvar=()"
+        local line
         while IFS= read -r line || [[ -n "$line" ]]; do
             [[ -z "$line" ]] && continue
             eval "$outvar+=(\"\${baby}\${line}\${R}\")"
         done < "$f"
         [[ $(eval "echo \${#$outvar[@]}") -gt 0 ]] && return 0
     fi
-    eval "$outvar=(\"\${$emb[@]}\")"
+    # Fall back to embedded array (only for the four built-ins)
+    [[ -n "$emb" ]] && eval "$outvar=(\"\${$emb[@]}\")"
 }
 
 declare -a FOX FOX_INV FACE FACE_INV
@@ -167,12 +168,30 @@ FACE_INV+=("${baby}⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿�
 FACE_INV+=("${baby}⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠛⠃${R}")
 # ── Select + load the chosen art into ART ───────────────────────
 declare -a ART
-case "${AYNIGHT_ART:-fox}" in
-    fox-inv)  _aygea_load_art fox-inverted.txt   ART FOX_INV ;;
-    face)     _aygea_load_art face.txt            ART FACE ;;
-    face-inv) _aygea_load_art face-inverted.txt   ART FACE_INV ;;
-    fox|*)    _aygea_load_art fox.txt             ART FOX ;;
+# Generic art selector: AYNIGHT_ART=<name> loads <name>.txt
+# (or <name>-inverted.txt when name ends in -inv). Falls back to
+# embedded arrays for the four built-ins, else to fox if unknown.
+_a="${AYNIGHT_ART:-fox}"
+case "$_a" in
+    *-inv)
+        _base="${_a%-inv}"
+        case "$_base" in
+            fox)  _aygea_load_art fox-inverted.txt   ART FOX_INV ;;
+            face) _aygea_load_art face-inverted.txt  ART FACE_INV ;;
+            *)    _aygea_load_art "${_base}-inverted.txt" ART ""  ;;
+        esac
+        ;;
+    *)
+        case "$_a" in
+            fox)  _aygea_load_art fox.txt  ART FOX  ;;
+            face) _aygea_load_art face.txt ART FACE ;;
+            *)    _aygea_load_art "${_a}.txt" ART "" ;;
+        esac
+        ;;
 esac
+# Nothing loaded (unknown name, no file, no embedded match)? → fox
+[[ ${#ART[@]} -eq 0 ]] && ART=("${FOX[@]}")
+unset _a _base
 
 
 # ── visible length (strips ANSI) ────────────────────────────────

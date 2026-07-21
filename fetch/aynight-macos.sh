@@ -10,22 +10,23 @@ _aygea_usage() {
 AygeaNight system fetch (macOS)
 
 Usage: aynight [option]
-  --fox          laying fox        (default)
-  --fox-inv      inverted laying fox
-  --face         bordered fox face
-  --face-inv     inverted blob face
-  --art <name>   fox | fox-inv | face | face-inv
+  --<name>       load art/<name>.txt        (e.g. --fox, --jirachi)
+  --<name>-inv   inverted variant           (e.g. --fox-inv, --jirachi-inv)
+  --art <name>   explicit name              (fox | fox-inv | face | jirachi | ...)
   -h, --help     show this help
+
+Built-in:   --fox (default), --fox-inv, --face, --face-inv
+Custom:     drop art/<name>.txt + art/<name>-inverted.txt, use --<name>
 
 Env:  AYNIGHT_ART=<name>   (flag overrides env)
 EOF
 }
 for _a in "$@"; do
     case "$_a" in
-        --fox|--fox-inv|--face|--face-inv) AYNIGHT_ART="${_a#--}" ;;
+        -h|--help) _aygea_usage; exit 0 ;;
         --art) shift; AYNIGHT_ART="$1" ;;
         --art=*) AYNIGHT_ART="${_a#--art=}" ;;
-        -h|--help) _aygea_usage; exit 0 ;;
+        --*) AYNIGHT_ART="${_a#--}" ;;  # generic --<name> / --<name>-inv
         *) printf 'aynight: unknown option %s\n' "$_a" >&2; _aygea_usage; exit 2 ;;
     esac
 done
