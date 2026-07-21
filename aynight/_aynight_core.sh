@@ -460,7 +460,19 @@ get_updates() {
     if command -v apt >/dev/null 2>&1; then
         n=$(apt list --upgradable 2>/dev/null | grep -c '/')
     elif command -v pacman >/dev/null 2>&1; then
-        n=$(pacman -Qu 2>/dev/null | grep -c .)
+        local repo aur
+        repo=$(pacman -Qu 2>/dev/null | grep -c .)
+        # AUR updates via yay or paru (slow — opt in with AYNIGHT_CHECK_AUR=1)
+        if [[ "${AYNIGHT_CHECK_AUR:-0}" == "1" ]]; then
+            if command -v yay >/dev/null 2>&1; then
+                aur=$(yay -Qua 2>/dev/null | grep -c .)
+            elif command -v paru >/dev/null 2>&1; then
+                aur=$(paru -Qua 2>/dev/null | grep -c .)
+            fi
+        fi
+        repo=${repo:-0}; aur=${aur:-0}
+        AYN_AUR_UPDATES=${aur:-0}   # stash for display
+        n=$(( repo + aur ))
     elif command -v dnf >/dev/null 2>&1; then
         n=$(dnf check-update 2>/dev/null | grep -cE '\.$')
     elif command -v brew >/dev/null 2>&1; then
@@ -473,8 +485,10 @@ get_updates() {
 _updates_value() {
     local n; n=$(get_updates)
     [[ "$n" == "N/A" ]] && { printf '%sN/A%s' "$silverdk" "$R"; return; }
+    local extra=""
+    [[ "${AYN_AUR_UPDATES:-0}" =~ ^[0-9]+$ ]] && (( AYN_AUR_UPDATES > 0 )) && extra=" (${AYN_AUR_UPDATES} AUR)"
     if (( n == 0 )); then printf '%s0 up to date%s' "$green" "$R"
-    else printf '%s%d pending%s' "$pinkdk" "$n" "$R"; fi
+    else printf '%s%d pending%s%s' "$pinkdk" "$n" "$extra" "$R"; fi
 }
 
 
