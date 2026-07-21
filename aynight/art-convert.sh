@@ -2,8 +2,8 @@
 # ╭──────────────────────────────────────────────────────────────╮
 # │  art-convert.sh · image → braille dot-art for aynight         │
 # │                                                              │
-# │  Turns a PNG/JPG into a braille .txt the fetch can render.    │
-# │  Drop the output in fetch/art/<name>.txt, then run            │
+# │  Turns a PNG/JPG into a braille .txt aynight can render.      │
+# │  Drop the output in aynight/art/<name>.txt, then run            │
 # │  `aynight --<name>`.                                         │
 # │                                                              │
 # │  Usage:                                                      │
@@ -24,7 +24,7 @@ art-convert.sh — image to braille dot-art
 
 Usage: ./art-convert.sh <image> <name> [width] [--invert]
   image    PNG/JPG/etc source
-  name     output name (writes fetch/art/<name>.txt)
+  name     output name (writes aynight/art/<name>.txt)
   width    target width in chars (default 40; braille = 2px/char)
   --invert dark-on-light source (negate before converting)
 
@@ -46,7 +46,7 @@ INVERT=0
 # Resolve art dir (beside this script)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ART_DIR="$SCRIPT_DIR"
-[[ "$ART_DIR" == *fetch ]] && ART_DIR="$SCRIPT_DIR/art"
+[[ "$ART_DIR" == *aynight ]] && ART_DIR="$SCRIPT_DIR/art"
 [[ -d "$ART_DIR" ]] || ART_DIR="$SCRIPT_DIR"
 
 OUT="$ART_DIR/$NAME.txt"

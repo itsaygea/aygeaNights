@@ -15,11 +15,11 @@ Baby blue, sapphire, pink, silver — dark navy background
 | `AygeaNight.itermcolors` | double-click to install | iTerm2 color scheme |
 | `tmux.conf` | `~/.tmux.conf` | tmux status bar + colors |
 | `starship.toml` | `~/.config/starship.toml` | shell prompt |
-| `fetch/aynight-macos.sh` | macOS fetch wrapper | fox/face art + system info |
-| `fetch/aynight-ubuntu.sh` | Ubuntu / Debian fetch wrapper | fox/face art + system info |
-| `fetch/aynight-arch.sh` | Arch / CachyOS fetch wrapper | fox/face art + system info |
-| `fetch/_aynight_core.sh` | shared engine (sourced by wrappers) | art, info rows, dot-meters |
-| `fetch/art/*.txt` | dot-art designs | fox / face, regular + inverted |
+| `aynight/aynight-macos.sh` | macOS fetch wrapper | fox/face art + system info |
+| `aynight/aynight-ubuntu.sh` | Ubuntu / Debian fetch wrapper | fox/face art + system info |
+| `aynight/aynight-arch.sh` | Arch / CachyOS fetch wrapper | fox/face art + system info |
+| `aynight/_aynight_core.sh` | shared engine (sourced by wrappers) | art, info rows, dot-meters |
+| `aynight/art/*.txt` | dot-art designs | fox / face, regular + inverted |
 
 ---
 
@@ -150,11 +150,11 @@ A system fetch that shows a dot-art fox (or fox face) alongside your system info
 
 | Wrapper | Platform |
 |---|---|
-| `fetch/aynight-macos.sh` | macOS |
-| `fetch/aynight-ubuntu.sh` | Ubuntu / Debian / Pop |
-| `fetch/aynight-arch.sh` | Arch / CachyOS / Manjaro |
+| `aynight/aynight-macos.sh` | macOS |
+| `aynight/aynight-ubuntu.sh` | Ubuntu / Debian / Pop |
+| `aynight/aynight-arch.sh` | Arch / CachyOS / Manjaro |
 
-Each wrapper sources `fetch/_aynight_core.sh` (the shared engine) and pulls art from `fetch/art/*.txt`.
+Each wrapper sources `aynight/_aynight_core.sh` (the shared engine) and pulls art from `aynight/art/*.txt`.
 
 ### Install manually (any OS)
 
@@ -162,10 +162,10 @@ The wrappers expect the core engine beside them or in `~/.local/share/aygea/`. E
 
 ```bash
 mkdir -p ~/.local/share/aygea/art
-cp fetch/_aynight_core.sh ~/.local/share/aygea/
-cp fetch/art/*.txt ~/.local/share/aygea/art/
-chmod +x fetch/aynight-<your-os>.sh
-cp fetch/aynight-<your-os>.sh ~/.local/bin/aynight
+cp aynight/_aynight_core.sh ~/.local/share/aygea/
+cp aynight/art/*.txt ~/.local/share/aygea/art/
+chmod +x aynight/aynight-<your-os>.sh
+cp aynight/aynight-<your-os>.sh ~/.local/bin/aynight
 ```
 
 Then add to your shell rc (zshrc on macOS / zsh, bashrc on bash — at the end):
@@ -185,7 +185,7 @@ aynight --art face   # same as --face
 aynight --help       # all options
 ```
 
-Or set it permanently with `export AYNIGHT_ART=face` in your shell rc. The raw art lives in `fetch/art/*.txt` — edit those and the dev script picks up changes (re-run the installer to bake edits into the installed binary).
+Or set it permanently with `export AYNIGHT_ART=face` in your shell rc. The raw art lives in `aynight/art/*.txt` — edit those and the dev script picks up changes (re-run the installer to bake edits into the installed binary).
 
 ---
 

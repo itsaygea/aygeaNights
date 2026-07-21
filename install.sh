@@ -563,8 +563,8 @@ install_fetch() {
         ubuntu) wrapper="aynight-ubuntu.sh" ;;
         arch)   wrapper="aynight-arch.sh" ;;
     esac
-    src="$SCRIPT_DIR/fetch/$wrapper"
-    core="$SCRIPT_DIR/fetch/_aynight_core.sh"
+    src="$SCRIPT_DIR/aynight/$wrapper"
+    core="$SCRIPT_DIR/aynight/_aynight_core.sh"
     if [[ ! -f "$src" || ! -f "$core" ]]; then
         warn "Fetch files missing ($wrapper / _aynight_core.sh)"
         return 1

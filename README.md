@@ -39,7 +39,7 @@ aynight --art face   # same as --face
 aynight --help       # all options
 ```
 
-Or set it permanently: `export AYNIGHT_ART=face` in your shell rc. The raw art lives in `fetch/art/*.txt` — edit those and the dev script picks up changes; re-run the installer to bake edits into the installed binary.
+Or set it permanently: `export AYNIGHT_ART=face` in your shell rc. The raw art lives in `aynight/art/*.txt` — edit those and the dev script picks up changes; re-run the installer to bake edits into the installed binary.
 
 Optional **Login MOTD** step (`--motd`, Linux + sudo) runs `aynight` at every SSH/console login. It asks Yes/No before writing, backs up `/etc/motd`, and `--uninstall` restores it.
 
@@ -50,11 +50,11 @@ Optional **Login MOTD** step (`--motd`, Linux + sudo) runs `aynight` at every SS
 | `AygeaNight.itermcolors` | iTerm2 color scheme |
 | `tmux.conf` | tmux status bar and colors |
 | `starship.toml` | Shell prompt theme |
-| `fetch/aynight-macos.sh` | System fetch wrapper for macOS |
-| `fetch/aynight-ubuntu.sh` | System fetch wrapper for Ubuntu / Debian / Pop |
-| `fetch/aynight-arch.sh` | System fetch wrapper for Arch / CachyOS / Manjaro |
-| `fetch/_aynight_core.sh` | Shared fetch engine (art, info, dot-meters) |
-| `fetch/art/*.txt` | Dot-art fox + face designs (regular + inverted) |
+| `aynight/aynight-macos.sh` | System fetch wrapper for macOS |
+| `aynight/aynight-ubuntu.sh` | System fetch wrapper for Ubuntu / Debian / Pop |
+| `aynight/aynight-arch.sh` | System fetch wrapper for Arch / CachyOS / Manjaro |
+| `aynight/_aynight_core.sh` | Shared fetch engine (art, info, dot-meters) |
+| `aynight/art/*.txt` | Dot-art fox + face designs (regular + inverted) |
 
 ## Font
 

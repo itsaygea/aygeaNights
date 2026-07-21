@@ -4,8 +4,8 @@
 # │  Block-art fox + sectioned info + dot meters                 │
 # │                                                              │
 # │  NOT standalone. Sourced by the OS wrappers:                 │
-# │    fetch/aynight-arch.sh   fetch/aynight-ubuntu.sh     │
-# │    fetch/aynight.zsh                                    │
+# │    aynight/aynight-arch.sh   aynight/aynight-ubuntu.sh     │
+# │    aynight/aynight.zsh                                    │
 # │  Each wrapper must define, before sourcing this file:        │
 # │    AYNIGHT_OS   short label e.g. "Arch", "macOS"          │
 # │    get_os()        full OS string                            │
@@ -42,12 +42,12 @@ dim=$(_c 105 122 150)    # dim text
 #   AYNIGHT_ART=face       regular bordered face
 #   AYNIGHT_ART=face-inv   inverted blob face
 #
-# Loaded from fetch/art/{fox,fox-inverted,face,face-inverted}.txt if
+# Loaded from aynight/art/{fox,fox-inverted,face,face-inverted}.txt if
 # present (edit those files to recolor/reshape without touching code).
 # Embedded fallback below covers curl-pipe installs with no art dir.
 # ════════════════════════════════════════════════════════════════
 
-# Resolve art dir: beside this script (fetch/art), else $HOME/.local/share/aygea/art
+# Resolve art dir: beside this script (aynight/art), else $HOME/.local/share/aygea/art
 _aygea_art_dir=""
 if [[ -n "${BASH_SOURCE[0]:-}" && -d "$(dirname "${BASH_SOURCE[0]}")/art" ]]; then
     _aygea_art_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/art" && pwd)"
