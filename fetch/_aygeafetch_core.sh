@@ -341,12 +341,88 @@ get_disk_str() {
     printf '%s / %s\t%s' "${used:-N/A}" "${total:-N/A}" "${pct:-0}"
 }
 
-get_ip() {
+# IPv4 of first non-loopback interface (Linux ip / macOS ipconfig)
+get_ipv4() {
     local ip=""
-    command -v hostname >/dev/null 2>&1 && ip=$(hostname -I 2>/dev/null | awk '{print $1}')
-    [[ -z "$ip" ]] && command -v ipconfig >/dev/null 2>&1 && ip=$(ipconfig getifaddr en0 2>/dev/null)
+    if command -v ip >/dev/null 2>&1; then
+        ip=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $2, $4}' | head -1)
+    elif command -v hostname >/dev/null 2>&1; then
+        ip=$(hostname -I 2>/dev/null | awk '{print $1}')
+        [[ -n "$ip" ]] && ip="(default) $ip"
+    fi
+    [[ -z "$ip" ]] && command -v ipconfig >/dev/null 2>&1 && ip="en0 $(ipconfig getifaddr en0 2>/dev/null)"
     printf '%s' "${ip:-N/A}"
 }
+
+# IPv6 of first non-loopback global interface
+get_ipv6() {
+    local ip=""
+    if command -v ip >/dev/null 2>&1; then
+        ip=$(ip -6 -o addr show scope global 2>/dev/null | awk '{print $2, $4}' | head -1)
+    fi
+    [[ -z "$ip" ]] && { printf 'N/A'; return; }
+    # trim /prefixlen
+    ip=$(printf '%s' "$ip" | sed -E 's|/([0-9]+)||')
+    printf '%s' "$ip"
+}
+
+# 1-min load average (Linux /proc/loadavg, macOS sysctl)
+get_load() {
+    local l=""
+    if [[ -r /proc/loadavg ]]; then l=$(awk '{print $1}' /proc/loadavg 2>/dev/null)
+    elif command -v sysctl >/dev/null 2>&1; then l=$(sysctl -n vm.loadavg 2>/dev/null | awk '{print $2}'); fi
+    printf '%s' "${l:-N/A}"
+}
+
+# Swap usage pct (Linux /proc/meminfo, macOS vm.sys)
+get_swap_pct() {
+    local t u
+    if [[ -r /proc/meminfo ]]; then
+        read -r t u < <(awk '/^SwapTotal:/{t=$2}/^SwapFree:/{f=$2}END{print t" "(t-f)}' /proc/meminfo 2>/dev/null)
+        [[ -n "${u:-}" ]] || u=0
+        (( t > 0 )) || { printf '0'; return; }
+        printf '%d' $(( u * 100 / t ))
+    else printf '0'; fi
+}
+
+# Running process count
+get_procs() {
+    local n=""
+    [[ -r /proc/stat ]] && n=$(find /proc -maxdepth 1 -name '[0-9]*' 2>/dev/null | wc -l | tr -d ' ')
+    [[ -z "$n" ]] && command -v ps >/dev/null 2>&1 && n=$(ps -e 2>/dev/null | wc -l | tr -d ' ')
+    printf '%s' "${n:-N/A}"
+}
+
+# Logged-in user sessions (unique users)
+get_users() {
+    local n=""
+    command -v who >/dev/null 2>&1 && n=$(who 2>/dev/null | awk '{print $1}' | sort -u | wc -l | tr -d ' ')
+    printf '%s' "${n:-0}"
+}
+
+# Pending updates — wrapper may override. Default tries common package managers.
+get_updates() {
+    local n=""
+    if command -v apt >/dev/null 2>&1; then
+        n=$(apt list --upgradable 2>/dev/null | grep -c '/')
+    elif command -v pacman >/dev/null 2>&1; then
+        n=$(pacman -Qu 2>/dev/null | grep -c .)
+    elif command -v dnf >/dev/null 2>&1; then
+        n=$(dnf check-update 2>/dev/null | grep -cE '\.$')
+    elif command -v brew >/dev/null 2>&1; then
+        n=$(brew outdated 2>/dev/null | wc -l | tr -d ' ')
+    fi
+    printf '%s' "${n:-N/A}"
+}
+
+# Color the updates count: 0 = green, >0 = pink
+_updates_value() {
+    local n; n=$(get_updates)
+    [[ "$n" == "N/A" ]] && { printf '%sN/A%s' "$silverdk" "$R"; return; }
+    if (( n == 0 )); then printf '%s0 up to date%s' "$green" "$R"
+    else printf '%s%d pending%s' "$pinkdk" "$n" "$R"; fi
+}
+
 
 # ════════════════════════════════════════════════════════════════
 # Formatting primitives
@@ -376,7 +452,7 @@ _meter() {  # pct
 }
 
 # ════════════════════════════════════════════════════════════════
-# Build info rows (3 sections)
+# Build info rows (4 sections)
 # ════════════════════════════════════════════════════════════════
 declare -a INFO
 INFO=()
@@ -385,9 +461,8 @@ INFO+=("$(_section SYSTEM)")
 INFO+=("$(_kv OS       "$(get_os)")")
 INFO+=("$(_kv Kernel   "$(get_kernel)")")
 INFO+=("$(_kv Uptime   "$(get_uptime)")")
-INFO+=("$(_kv Shell    "$(get_shell)")")
-INFO+=("$(_kv Terminal "$(get_term)")")
 INFO+=("$(_kv Packages "$(get_pkgs)")")
+INFO+=("$(printf '%s%-*s%s %s' "$dim" "$LBL_W" "Updates" "$R" "$(_updates_value)")")
 INFO+=("$(_section HARDWARE)")
 INFO+=("$(_kv CPU      "$(get_cpu)")")
 INFO+=("$(_kv GPU      "$(get_gpu)")")
@@ -395,16 +470,28 @@ INFO+=("$(_kv GPU      "$(get_gpu)")")
 # RAM row with inline meter
 {
     IFS=$'\t' read -r ram_str ram_pct <<< "$(get_ram_str)"
-    INFO+=("$(printf '%s%-*s%s %s%-20s %s' "$dim" "$LBL_W" "RAM" "$R" "$silver" "$ram_str" "$(_meter "$ram_pct")")")
+    INFO+=("$(printf '%s%-*s%s %s%-20s %s' "$dim" "$LBL_W" "Memory" "$R" "$silver" "$ram_str" "$(_meter "$ram_pct")")")
 }
 # Disk row with inline meter
 {
     IFS=$'\t' read -r disk_str disk_pct <<< "$(get_disk_str)"
     INFO+=("$(printf '%s%-*s%s %s%-20s %s' "$dim" "$LBL_W" "Disk" "$R" "$silver" "$disk_str" "$(_meter "$disk_pct")")")
 }
+# Swap row (meter only when swap exists)
+{
+    sp=$(get_swap_pct)
+    if [[ "$sp" =~ ^[0-9]+$ ]] && (( sp >= 0 )); then
+        INFO+=("$(printf '%s%-*s%s %s' "$dim" "$LBL_W" "Swap" "$R" "$(_meter "$sp")")")
+    fi
+}
 
+INFO+=("$(_section SESSION)")
+INFO+=("$(_kv Load     "$(get_load)")")
+INFO+=("$(_kv Procs    "$(get_procs)")")
+INFO+=("$(_kv Users    "$(get_users)")")
 INFO+=("$(_section NETWORK)")
-INFO+=("$(_kv IP       "$(get_ip)")")
+INFO+=("$(_kv IPv4     "$(get_ipv4)")")
+INFO+=("$(_kv IPv6     "$(get_ipv6)")")
 
 # ════════════════════════════════════════════════════════════════
 # Render side by side

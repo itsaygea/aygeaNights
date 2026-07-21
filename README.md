@@ -53,6 +53,10 @@ aygeafetch --art face   # same as --face
 
 Or set it permanently: `export AYGEAFETCH_ART=face` in your shell rc. The raw art lives in `fetch/art/*.txt` — edit those and the dev script picks up changes; re-run the installer to bake edits into the installed binary.
 
+The fetch shows Ubuntu-MOTD-style info: pending **updates** count (apt/pacman/dnf/brew — green when 0, pink when pending), memory/disk/swap meters, load average, process count, logged-in users, and IPv4/IPv6 addresses.
+
+Optional **Login MOTD** step (Linux, needs sudo) drops a script at `/etc/update-motd.d/99-aygea` (Ubuntu/Debian) or `/etc/profile.d/aygea-motd.sh` (Arch) so `aygeafetch` runs at every SSH/console login — like the distro welcome banner, but yours.
+
 ## Font
 
 JetBrainsMono Nerd Font. If you clone the repo, the files are bundled in `fonts/JetBrainsMono/` and the installer copies them. If you curl-pipe install (no clone), the installer downloads the font from [Nerd Fonts](https://www.nerdfonts.com/) automatically. Either way: set **JetBrainsMono Nerd Font** in your terminal emulator after install.

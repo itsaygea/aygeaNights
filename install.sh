@@ -320,6 +320,11 @@ detect_locale_installed() {
     locale -a 2>/dev/null | grep -qi 'en_US\.utf'
 }
 
+detect_motd_installed() {
+    [[ -x /etc/update-motd.d/99-aygea ]] && return 0
+    [[ -f /etc/profile.d/aygea-motd.sh ]]
+}
+
 # ══════════════════════════════════════════════════════════════════
 # ── Install functions ────────────────────────────────────────────
 # ══════════════════════════════════════════════════════════════════
@@ -425,6 +430,35 @@ install_locale() {
             ;;
     esac
     success "Locale configured (log out and back in to fully apply)"
+}
+
+# ── System MOTD: show aygeafetch at every login (Linux, needs sudo) ──
+install_motd() {
+    [[ "$OS" == "macos" ]] && { info "MOTD install skipped (macOS)"; return 0; }
+    local motd_dir="/etc/update-motd.d"
+    if [[ ! -d "$motd_dir" ]]; then
+        # Arch/CachyOS: no update-motd.d by default; wire via /etc/profile.d instead
+        local pd="/etc/profile.d/aygea-motd.sh"
+        info "No $motd_dir — installing login fetch to $pd (runs on shell login)"
+        maybe_sudo tee "$pd" >/dev/null <<'EOF'
+# AygeaNight login fetch — show on first interactive login shell
+if [[ -n "$SSH_CONNECTION" || -z "$DISPLAY" ]] && [[ -t 1 ]] && [[ -z "$AYGEA_MOTD_SHOWN" ]]; then
+    command -v aygeafetch >/dev/null 2>&1 && aygeafetch --fox
+    export AYGEA_MOTD_SHOWN=1
+fi
+EOF
+        success "Login fetch installed to $pd"
+        return 0
+    fi
+    maybe_sudo tee "$motd_dir/99-aygea" >/dev/null <<'EOF'
+#!/usr/bin/env bash
+# AygeaNight system fetch — shown at every login (SSH + console)
+command -v aygeafetch >/dev/null 2>&1 && aygeafetch --fox || true
+exit 0
+EOF
+    maybe_sudo chmod +x "$motd_dir/99-aygea"
+    success "MOTD fetch installed to $motd_dir/99-aygea"
+    info "Shows at next login (SSH/console). Disable: chmod -x $motd_dir/99-aygea"
 }
 
 install_starship() {
@@ -555,6 +589,16 @@ do_uninstall() {
         info "Removed $HOME/.local/share/aygea"
     fi
 
+    # Remove MOTD/login-fetch (best effort, may need sudo)
+    if [[ -f /etc/update-motd.d/99-aygea ]]; then
+        rm -f /etc/update-motd.d/99-aygea 2>/dev/null || sudo rm -f /etc/update-motd.d/99-aygea 2>/dev/null || true
+        info "Removed /etc/update-motd.d/99-aygea"
+    fi
+    if [[ -f /etc/profile.d/aygea-motd.sh ]]; then
+        rm -f /etc/profile.d/aygea-motd.sh 2>/dev/null || sudo rm -f /etc/profile.d/aygea-motd.sh 2>/dev/null || true
+        info "Removed /etc/profile.d/aygea-motd.sh"
+    fi
+
     if [[ "$OS" == "macos" ]]; then
         local dest="$HOME/Library/Fonts"
         local removed=0
@@ -647,6 +691,15 @@ build_menu() {
             add_item "Locale setup" "en_US.UTF-8" "already installed" 1 1 "install_locale"
         else
             add_item "Locale setup" "en_US.UTF-8" "not installed" 1 1 "install_locale"
+        fi
+    fi
+
+    # 7. System MOTD (Linux, needs sudo) — aygeafetch at every login
+    if [[ "$OS" != "macos" ]]; then
+        if detect_motd_installed; then
+            add_item "Login MOTD" "aygeafetch at login" "already installed" 1 1 "install_motd"
+        else
+            add_item "Login MOTD" "aygeafetch at login" "not installed" 1 1 "install_motd"
         fi
     fi
 }
