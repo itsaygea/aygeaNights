@@ -458,18 +458,10 @@ install_locale() {
 install_motd() {
     [[ "$OS" == "macos" ]] && { info "MOTD install skipped (macOS)"; return 0; }
 
-    # Already installed? Ask if they want to skip.
+    # Already installed? Nothing to do.
     if detect_motd_installed; then
         info "Login MOTD already installed"
         return 0
-    fi
-
-    # Prompt (unless --motd flag forced it, in which case $AYN_MOTD_CONFIRM=y)
-    if [[ "${AYN_MOTD_CONFIRM:-}" != "y" ]]; then
-        if ! ask_yn "Install login MOTD? (writes /etc — shows aynight at every SSH/console login)"; then
-            info "MOTD install skipped. Re-run with: aynight not available — use './install.sh --motd'"
-            return 0
-        fi
     fi
 
     local stamp; stamp=$(date +%Y%m%d%H%M%S)
