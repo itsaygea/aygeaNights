@@ -484,18 +484,66 @@ install_motd() {
     fi
 
     if [[ ! -d "$motd_dir" ]]; then
-        # Arch/CachyOS: no update-motd.d by default; wire via /etc/profile.d instead
+        # Arch/CachyOS: no update-motd.d by default; wire via /etc/profile.d.
+        # Back up /etc/motd + any motd.d snippets (Cockpit, etc.) first.
+        if [[ -f /etc/motd ]]; then
+            maybe_sudo cp /etc/motd "/etc/motd.ayn.bak.$stamp" 2>/dev/null || true
+        fi
+        if [[ -d /etc/motd.d ]]; then
+            maybe_sudo mkdir -p "/etc/motd.d.ayn.bak.$stamp"
+            maybe_sudo cp -a /etc/motd.d/. "/etc/motd.d.ayn.bak.$stamp/" 2>/dev/null || true
+        fi
+
+        # Mode: replace hides other motd.d snippets (Cockpit line, etc.),
+        # merge leaves them alone.
+        local mode="replace"
+        if [[ "${AYN_MOTD_MODE:-}" == "merge" ]]; then mode="merge"
+        elif [[ "${AYN_MOTD_MODE:-}" != "replace" ]]; then
+            printf '%s  %sHide other motd snippets (e.g. Cockpit line)?%s\n' "$C_BOLD" "$C_SAPPHIRE" "$C_RESET"
+            printf '    1) Replace — only aynight fox + update notices\n'
+            printf '    2) Merge   — keep existing motd snippets, add aynight\n'
+            local m
+            while true; do
+                printf '%s  Choice [1]%s ' "$C_DIM" "$C_RESET"
+                read -r m < /dev/tty || m=""
+                case "${m:-1}" in 1) mode="replace"; break ;; 2) mode="merge"; break ;; esac
+            done
+        fi
+
+        if [[ "$mode" == "replace" ]]; then
+            # Move motd.d snippets aside (reversible; tracked for restore)
+            maybe_sudo mkdir -p /etc/motd.d
+            local moved=0
+            shopt -s nullglob
+            for s in /etc/motd.d/*; do
+                maybe_sudo mv "$s" "$s.ayn.hidden" 2>/dev/null && moved=$((moved+1)) || true
+            done
+            shopt -u nullglob
+            (( moved > 0 )) && success "Hid $moved motd.d snippet(s) (replace mode)"
+        fi
+
         local pd="/etc/profile.d/aynight-motd.sh"
         [[ -f "$pd" ]] && maybe_sudo cp "$pd" "$pd.ayn.bak.$stamp" 2>/dev/null || true
         maybe_sudo tee "$pd" >/dev/null <<'EOF'
-# AygeaNight login fetch — show on first interactive login shell
+# AygeaNight login fetch + notices — show on first interactive login shell
 if [[ -n "$SSH_CONNECTION" || -z "$DISPLAY" ]] && [[ -t 1 ]] && [[ -z "$AYNIGHT_MOTD_SHOWN" ]]; then
     command -v aynight >/dev/null 2>&1 && aynight --fox
+    _ayn_notices() {
+        local RESET=$'\033[0m' PINK=$'\033[38;2;216;140;168m' BLUE=$'\033[38;2;175;203;255m'
+        if command -v pacman >/dev/null 2>&1; then
+            local n; n=$(pacman -Qu 2>/dev/null | grep -c .)
+            (( n > 0 )) && printf '\n%s  ↑ %d pacman updates available%s (pacman -Syu)\n' "$PINK" "$n" "$RESET"
+        fi
+        [[ -f /var/run/reboot-required ]] && printf '%s  ⟳ reboot required%s\n' "$PINK" "$RESET"
+        printf '%s\n' "$RESET"
+    }
+    _ayn_notices 2>/dev/null
+    unset -f _ayn_notices
     export AYNIGHT_MOTD_SHOWN=1
 fi
 EOF
-        success "Login fetch installed to $pd"
-        info "Backups saved with .ayn.bak.<ts> suffix. Disable: rm $pd"
+        success "Login fetch installed to $pd ($mode mode)"
+        info "Backups in /etc/motd.d.ayn.bak.* — --uninstall restores everything"
         return 0
     fi
     # Mode prompt: replace Ubuntu motd, or merge beneath it?
@@ -733,6 +781,22 @@ do_uninstall() {
         done < "$dlist"
         { rm -f "$dlist" 2>/dev/null || sudo rm -f "$dlist" 2>/dev/null; } || true
         (( re > 0 )) && success "Re-enabled $re Ubuntu motd script(s)"
+    fi
+    # Arch: restore hidden motd.d snippets (replace mode hid them as .ayn.hidden)
+    shopt -s nullglob
+    local hid=0
+    for s in /etc/motd.d/*.ayn.hidden; do
+        local orig="${s%.ayn.hidden}"
+        { mv "$s" "$orig" 2>/dev/null || sudo mv "$s" "$orig" 2>/dev/null; } && hid=$((hid+1)) || true
+    done
+    shopt -u nullglob
+    (( hid > 0 )) && success "Restored $hid Arch motd.d snippet(s)"
+    # Arch: restore /etc/motd.d backup dir if it exists
+    local motdd_bak; motdd_bak=$(ls -1d /etc/motd.d.ayn.bak.* 2>/dev/null | head -1)
+    if [[ -n "$motdd_bak" ]]; then
+        maybe_sudo mkdir -p /etc/motd.d 2>/dev/null || sudo mkdir -p /etc/motd.d 2>/dev/null || true
+        { cp -a "$motdd_bak/." /etc/motd.d/ 2>/dev/null || sudo cp -a "$motdd_bak/." /etc/motd.d/ 2>/dev/null; } || true
+        success "Restored /etc/motd.d from $motdd_bak"
     fi
     # Restore newest /etc/motd backup if one exists
     local motd_bak
