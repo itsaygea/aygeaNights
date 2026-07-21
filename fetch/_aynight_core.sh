@@ -375,15 +375,22 @@ get_load() {
 }
 
 # Swap usage pct (Linux /proc/meminfo, macOS vm.sys)
-get_swap_pct() {
+# Swap: "usedGiB / totalGiB\tpct" or empty when no swap configured.
+get_swap_str() {
     local t u
     if [[ -r /proc/meminfo ]]; then
         read -r t u < <(awk '/^SwapTotal:/{t=$2}/^SwapFree:/{f=$2}END{print t" "(t-f)}' /proc/meminfo 2>/dev/null)
+        [[ -n "${t:-}" ]] || t=0
         [[ -n "${u:-}" ]] || u=0
-        (( t > 0 )) || { printf '0'; return; }
-        printf '%d' $(( u * 100 / t ))
-    else printf '0'; fi
+        (( t > 0 )) || { printf ''; return; }
+        local ug tg pct
+        ug=$(awk -v k="$u" 'BEGIN{printf "%.1f",k/1048576}')
+        tg=$(awk -v k="$t" 'BEGIN{printf "%.0f",k/1048576}')
+        pct=$(( u * 100 / t ))
+        printf '%sG / %sG\t%d' "$ug" "$tg" "$pct"
+    fi
 }
+
 
 # Running process count
 get_procs() {
@@ -477,11 +484,14 @@ INFO+=("$(_kv GPU      "$(get_gpu)")")
     IFS=$'\t' read -r disk_str disk_pct <<< "$(get_disk_str)"
     INFO+=("$(printf '%s%-*s%s %s%-20s %s' "$dim" "$LBL_W" "Disk" "$R" "$silver" "$disk_str" "$(_meter "$disk_pct")")")
 }
-# Swap row (meter only when swap exists)
+# Swap row: full format like Memory/Disk when swap exists, else N/A (no meter)
 {
-    sp=$(get_swap_pct)
-    if [[ "$sp" =~ ^[0-9]+$ ]] && (( sp >= 0 )); then
-        INFO+=("$(printf '%s%-*s%s %s' "$dim" "$LBL_W" "Swap" "$R" "$(_meter "$sp")")")
+    swp=$(get_swap_str)
+    if [[ -n "$swp" ]]; then
+        IFS=$'\t' read -r sw_str sw_pct <<< "$swp"
+        INFO+=("$(printf '%s%-*s%s %s%-20s %s' "$dim" "$LBL_W" "Swap" "$R" "$silver" "$sw_str" "$(_meter "$sw_pct")")")
+    else
+        INFO+=("$(printf '%s%-*s%s %sN/A%s' "$dim" "$LBL_W" "Swap" "$R" "$silverdk" "$R")")
     fi
 }
 
