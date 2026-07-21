@@ -452,6 +452,57 @@ install_locale() {
     success "Locale configured (log out and back in to fully apply)"
 }
 
+# ── Centralized backup for MOTD/system files → ~/.aynight/backup/ ──
+# Each install backs up originals here before replacing; --uninstall
+# restores from here. Untouched by system daemons (they rewrite /etc,
+# not ~/.aynight), so backups stay clean across regenerations.
+# A MANIFEST file maps backup-file -> original-path for safe restore.
+AYN_BACKUP="$HOME/.aynight/backup"
+AYN_MANIFEST="$AYN_BACKUP/MANIFEST"
+
+# Backup a file/symlink to ~/.aynight/backup/, record in MANIFEST.
+_ayn_backup() {  # path
+    local src="$1"
+    [[ -e "$src" ]] || return 0
+    mkdir -p "$AYN_BACKUP"
+    local n=0 bkey
+    while [[ -e "$AYN_BACKUP/$n" ]]; do n=$((n+1)); done
+    bkey="$n"
+    if { cp -a "$src" "$AYN_BACKUP/$bkey" 2>/dev/null || sudo cp -a "$src" "$AYN_BACKUP/$bkey" 2>/dev/null; }; then
+        printf '%s\t%s\n' "$bkey" "$src" >> "$AYN_MANIFEST"
+    fi
+}
+
+# Replace a file with a blank no-op (backing up first). For executable
+# scripts, writes '#!/bin/sh\nexit 0'; for text files, empties it.
+_ayn_blank() {  # path
+    local src="$1"
+    [[ -e "$src" ]] || return 0
+    _ayn_backup "$src"
+    if [[ -x "$src" ]]; then
+        local body='#!/bin/sh
+exit 0'
+        { printf '%s\n' "$body" > "$src" 2>/dev/null || printf '%s\n' "$body" | sudo tee "$src" >/dev/null; } || true
+    else
+        { : > "$src" 2>/dev/null || sudo tee "$src" >/dev/null </dev/null; } || true
+    fi
+}
+
+# Restore everything per MANIFEST (uninstall), then clear backup dir.
+_ayn_restore_all() {
+    [[ -f "$AYN_MANIFEST" ]] || return 0
+    while IFS=$'\t' read -r bkey src; do
+        [[ -z "$src" ]] && continue
+        local dir; dir=$(dirname "$src")
+        { mkdir -p "$dir" 2>/dev/null || sudo mkdir -p "$dir" 2>/dev/null; } || true
+        if { cp -a "$AYN_BACKUP/$bkey" "$src" 2>/dev/null || sudo cp -a "$AYN_BACKUP/$bkey" "$src" 2>/dev/null; }; then
+            info "Restored $src"
+        fi
+    done < "$AYN_MANIFEST"
+    rm -rf "$AYN_BACKUP"
+    success "Cleared $AYN_BACKUP"
+}
+
 # ── System MOTD: show aynight at every login (Linux, needs sudo) ──
 # Backs up /etc/motd + any prior aynight/aygea motd file before writing.
 # Prompted at install time; rerun via `install.sh --motd` or `./install.sh --motd`.
@@ -467,26 +518,14 @@ install_motd() {
     local stamp; stamp=$(date +%Y%m%d%H%M%S)
     local motd_dir="/etc/update-motd.d"
 
-    # Back up existing motd artifacts (best effort)
-    if [[ -f /etc/motd ]]; then
-        maybe_sudo cp /etc/motd "/etc/motd.ayn.bak.$stamp" 2>/dev/null || true
-    fi
-    if [[ -f "$motd_dir/99-aygea" ]]; then
-        maybe_sudo cp "$motd_dir/99-aygea" "$motd_dir/99-aygea.ayn.bak.$stamp" 2>/dev/null || true
-    fi
+    # Back up existing motd artifacts → ~/.aynight/backup/
+    _ayn_backup /etc/motd
+    _ayn_backup "$motd_dir/99-aygea"
 
     if [[ ! -d "$motd_dir" ]]; then
         # Arch/CachyOS: no update-motd.d by default; wire via /etc/profile.d.
-        # Back up /etc/motd + any motd.d snippets (Cockpit, etc.) first.
-        if [[ -f /etc/motd ]]; then
-            maybe_sudo cp /etc/motd "/etc/motd.ayn.bak.$stamp" 2>/dev/null || true
-        fi
-        if [[ -d /etc/motd.d ]]; then
-            maybe_sudo mkdir -p "/etc/motd.d.ayn.bak.$stamp"
-            maybe_sudo cp -a /etc/motd.d/. "/etc/motd.d.ayn.bak.$stamp/" 2>/dev/null || true
-        fi
 
-        # Mode: replace hides other motd.d snippets (Cockpit line, etc.),
+        # Mode: replace blanks other motd/issue snippets (Cockpit line, etc.),
         # merge leaves them alone.
         local mode="replace"
         if [[ "${AYN_MOTD_MODE:-}" == "merge" ]]; then mode="merge"
@@ -503,20 +542,18 @@ install_motd() {
         fi
 
         if [[ "$mode" == "replace" ]]; then
-            # Move motd.d + issue.d snippets aside (reversible; tracked for restore)
-            maybe_sudo mkdir -p /etc/motd.d
-            local moved=0
+            # Blank motd.d + issue.d snippets (Cockpit, etc.) — backed up first.
+            # Blank (not chmod) so even regenerating daemons produce nothing.
             shopt -s nullglob
             for s in /etc/motd.d/* /etc/issue.d/*; do
                 [[ -e "$s" ]] || continue
-                maybe_sudo mv "$s" "$s.ayn.hidden" 2>/dev/null && moved=$((moved+1)) || true
+                _ayn_blank "$s"
             done
             shopt -u nullglob
-            (( moved > 0 )) && success "Hid $moved motd.d/issue.d snippet(s) (replace mode)"
         fi
 
         local pd="/etc/profile.d/aynight-motd.sh"
-        [[ -f "$pd" ]] && maybe_sudo cp "$pd" "$pd.ayn.bak.$stamp" 2>/dev/null || true
+        _ayn_backup "$pd"
         maybe_sudo tee "$pd" >/dev/null <<'EOF'
 # AygeaNight login fetch + notices — show on first interactive login shell
 if [[ -n "$SSH_CONNECTION" || -z "$DISPLAY" ]] && [[ -t 1 ]] && [[ -z "$AYNIGHT_MOTD_SHOWN" ]]; then
@@ -606,24 +643,17 @@ exit 0
 EOF
     maybe_sudo chmod +x "$motd_dir/99-aygea"
 
-    # In replace mode: disable the noisy Ubuntu motd scripts (reversible).
-    # Backs them up by recording the list; --uninstall re-enables.
+    # In replace mode: blank the noisy Ubuntu motd scripts (reversible).
+    # Blank (not chmod) so even daemons that ignore exec bit produce nothing.
+    # Backed up to ~/.aynight/backup/ — --uninstall restores.
     if [[ "$mode" == "replace" ]]; then
-        local disabled_list="/etc/update-motd.d/.ayn-disabled"
         local noisy="00-header 10-help-text 50-landscape-sysinfo 50-motd-news 85-fwupd 90-updates-available 91-contract-ua-esm-status 91-release-upgrade 92-unattended-upgrades 95-hwe-eol 97-overlayroot 98-fsck-at-reboot 98-reboot-required"
-        : > /tmp/.ayn-dlist.$$
         for s in $noisy; do
-            if [[ -x "$motd_dir/$s" ]]; then
-                maybe_sudo chmod -x "$motd_dir/$s" 2>/dev/null && echo "$s" >> /tmp/.ayn-dlist.$$
-            fi
+            [[ -e "$motd_dir/$s" ]] && _ayn_blank "$motd_dir/$s"
         done
-        maybe_sudo cp /tmp/.ayn-dlist.$$ "$disabled_list" 2>/dev/null || true
-        rm -f /tmp/.ayn-dlist.$$
         success "MOTD installed (replace mode) — fox + update notices"
-        info "Disabled Ubuntu motd scripts (list in $disabled_list). --uninstall re-enables them."
+        info "Blanked noisy Ubuntu motd scripts. Backups in ~/.aynight/backup/ — --uninstall restores."
     else
-        # merge mode: remove any prior disabled list so nothing stays off
-        maybe_sudo rm -f /etc/update-motd.d/.ayn-disabled 2>/dev/null || true
         success "MOTD installed (merge mode) — aynight appended below Ubuntu info"
     fi
     info "Disable: chmod -x $motd_dir/99-aygea"
@@ -757,47 +787,15 @@ do_uninstall() {
         info "Removed $HOME/.local/share/aygea"
     fi
 
-    # Remove MOTD/login-fetch (best effort, may need sudo) + restore backups
+    # Remove MOTD/login-fetch scripts we added (best effort, sudo)
     for f in /etc/update-motd.d/99-aygea /etc/profile.d/aynight-motd.sh /etc/profile.d/aygea-motd.sh; do
         if [[ -f "$f" ]]; then
             { rm -f "$f" 2>/dev/null || sudo rm -f "$f" 2>/dev/null; } || true
             info "Removed $f"
         fi
     done
-    # Re-enable Ubuntu motd scripts we disabled in replace mode (full restore)
-    local dlist="/etc/update-motd.d/.ayn-disabled"
-    if [[ -f "$dlist" ]]; then
-        local re=0
-        while IFS= read -r s; do
-            [[ -n "$s" ]] || continue
-            { chmod +x "/etc/update-motd.d/$s" 2>/dev/null || sudo chmod +x "/etc/update-motd.d/$s" 2>/dev/null; } && re=$((re+1)) || true
-        done < "$dlist"
-        { rm -f "$dlist" 2>/dev/null || sudo rm -f "$dlist" 2>/dev/null; } || true
-        (( re > 0 )) && success "Re-enabled $re Ubuntu motd script(s)"
-    fi
-    # Arch: restore hidden motd.d snippets (replace mode hid them as .ayn.hidden)
-    shopt -s nullglob
-    local hid=0
-    for s in /etc/motd.d/*.ayn.hidden /etc/issue.d/*.ayn.hidden; do
-        local orig="${s%.ayn.hidden}"
-        { mv "$s" "$orig" 2>/dev/null || sudo mv "$s" "$orig" 2>/dev/null; } && hid=$((hid+1)) || true
-    done
-    shopt -u nullglob
-    (( hid > 0 )) && success "Restored $hid Arch motd.d snippet(s)"
-    # Arch: restore /etc/motd.d backup dir if it exists
-    local motdd_bak; motdd_bak=$(ls -1d /etc/motd.d.ayn.bak.* 2>/dev/null | head -1)
-    if [[ -n "$motdd_bak" ]]; then
-        maybe_sudo mkdir -p /etc/motd.d 2>/dev/null || sudo mkdir -p /etc/motd.d 2>/dev/null || true
-        { cp -a "$motdd_bak/." /etc/motd.d/ 2>/dev/null || sudo cp -a "$motdd_bak/." /etc/motd.d/ 2>/dev/null; } || true
-        success "Restored /etc/motd.d from $motdd_bak"
-    fi
-    # Restore newest /etc/motd backup if one exists
-    local motd_bak
-    motd_bak=$(ls -1t /etc/motd.ayn.bak.* 2>/dev/null | head -1)
-    if [[ -n "$motd_bak" ]]; then
-        { cp "$motd_bak" /etc/motd 2>/dev/null || sudo cp "$motd_bak" /etc/motd 2>/dev/null; } && \
-            success "Restored /etc/motd from $motd_bak" || true
-    fi
+    # Restore all backed-up motd/issue/profile files from ~/.aynight/backup/
+    _ayn_restore_all
 
     if [[ "$OS" == "macos" ]]; then
         local dest="$HOME/Library/Fonts"
