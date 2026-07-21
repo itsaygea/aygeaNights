@@ -1,0 +1,5 @@
+# Font files — download separately from nerdfonts.com
+fonts/
+
+# macOS
+.DS_Store

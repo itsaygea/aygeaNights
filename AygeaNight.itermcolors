@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  AygeaNight.itermcolors
+  Tokyo Night base · Aygea brand accent colors
+  INSTALL: Double-click this file → iTerm2 will import it automatically
+  Then: iTerm2 → Preferences → Profiles → Colors → Color Presets → AygeaNight
+-->
+<plist version="1.0">
+<dict>
+
+  <!-- ── ANSI Colors ─────────────────────────────────────────── -->
+
+  <!-- 0 Black — deep navy panel -->
+  <key>Ansi 0 Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.10</real>
+    <key>Green Component</key><real>0.11</real>
+    <key>Blue Component</key> <real>0.16</real>
+  </dict>
+
+  <!-- 1 Red — muted wine rose (no harsh red) -->
+  <key>Ansi 1 Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.42</real>
+    <key>Green Component</key><real>0.10</real>
+    <key>Blue Component</key> <real>0.23</real>
+  </dict>
+
+  <!-- 2 Green — muted teal (opal teal ember) -->
+  <key>Ansi 2 Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.10</real>
+    <key>Green Component</key><real>0.29</real>
+    <key>Blue Component</key> <real>0.35</real>
+  </dict>
+
+  <!-- 3 Yellow — cool lavender (avoiding warm yellow entirely) -->
+  <key>Ansi 3 Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.60</real>
+    <key>Green Component</key><real>0.55</real>
+    <key>Blue Component</key> <real>0.78</real>
+  </dict>
+
+  <!-- 4 Blue — Deep Sapphire #0F52BA -->
+  <key>Ansi 4 Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.059</real>
+    <key>Green Component</key><real>0.322</real>
+    <key>Blue Component</key> <real>0.729</real>
+  </dict>
+
+  <!-- 5 Magenta — Soft Pink #F8C8DC -->
+  <key>Ansi 5 Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.780</real>
+    <key>Green Component</key><real>0.549</real>
+    <key>Blue Component</key> <real>0.659</real>
+  </dict>
+
+  <!-- 6 Cyan — Opal Flash Blue #A8D8F0 -->
+  <key>Ansi 6 Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.459</real>
+    <key>Green Component</key><real>0.722</real>
+    <key>Blue Component</key> <real>0.878</real>
+  </dict>
+
+  <!-- 7 White — Silver #E6EEF8 -->
+  <key>Ansi 7 Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.780</real>
+    <key>Green Component</key><real>0.820</real>
+    <key>Blue Component</key> <real>0.878</real>
+  </dict>
+
+  <!-- 8 Bright Black — navy mid #2A3A5E -->
+  <key>Ansi 8 Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.165</real>
+    <key>Green Component</key><real>0.227</real>
+    <key>Blue Component</key> <real>0.369</real>
+  </dict>
+
+  <!-- 9 Bright Red — Iced Rose #C4728A -->
+  <key>Ansi 9 Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.769</real>
+    <key>Green Component</key><real>0.447</real>
+    <key>Blue Component</key> <real>0.541</real>
+  </dict>
+
+  <!-- 10 Bright Green — lighter teal -->
+  <key>Ansi 10 Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.157</real>
+    <key>Green Component</key><real>0.490</real>
+    <key>Blue Component</key> <real>0.576</real>
+  </dict>
+
+  <!-- 11 Bright Yellow — Opal Lavender #C9B8E8 -->
+  <key>Ansi 11 Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.788</real>
+    <key>Green Component</key><real>0.722</real>
+    <key>Blue Component</key> <real>0.910</real>
+  </dict>
+
+  <!-- 12 Bright Blue — Baby Blue #AFCBFF -->
+  <key>Ansi 12 Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.686</real>
+    <key>Green Component</key><real>0.796</real>
+    <key>Blue Component</key> <real>1.000</real>
+  </dict>
+
+  <!-- 13 Bright Magenta — Pink Light #FFEAF2 -->
+  <key>Ansi 13 Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.941</real>
+    <key>Green Component</key><real>0.776</real>
+    <key>Blue Component</key> <real>0.859</real>
+  </dict>
+
+  <!-- 14 Bright Cyan — Baby Blue Light #DDEEFF -->
+  <key>Ansi 14 Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.867</real>
+    <key>Green Component</key><real>0.933</real>
+    <key>Blue Component</key> <real>1.000</real>
+  </dict>
+
+  <!-- 15 Bright White — near white #F4F8FF -->
+  <key>Ansi 15 Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.957</real>
+    <key>Green Component</key><real>0.973</real>
+    <key>Blue Component</key> <real>1.000</real>
+  </dict>
+
+  <!-- ── UI Colors ────────────────────────────────────────────── -->
+
+  <!-- Background — Tokyo Night base, slightly warmer/bluer than pure black -->
+  <key>Background Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.063</real>
+    <key>Green Component</key><real>0.071</real>
+    <key>Blue Component</key> <real>0.118</real>
+  </dict>
+
+  <!-- Foreground — Silver #C0D1E6 -->
+  <key>Foreground Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.753</real>
+    <key>Green Component</key><real>0.820</real>
+    <key>Blue Component</key> <real>0.902</real>
+  </dict>
+
+  <!-- Bold — bright silver/white -->
+  <key>Bold Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.957</real>
+    <key>Green Component</key><real>0.973</real>
+    <key>Blue Component</key> <real>1.000</real>
+  </dict>
+
+  <!-- Cursor — Baby Blue #AFCBFF -->
+  <key>Cursor Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.686</real>
+    <key>Green Component</key><real>0.796</real>
+    <key>Blue Component</key> <real>1.000</real>
+  </dict>
+
+  <!-- Cursor Text — dark bg so text is readable -->
+  <key>Cursor Text Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.063</real>
+    <key>Green Component</key><real>0.071</real>
+    <key>Blue Component</key> <real>0.118</real>
+  </dict>
+
+  <!-- Selection — navy blue #1B2438 -->
+  <key>Selection Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.106</real>
+    <key>Green Component</key><real>0.141</real>
+    <key>Blue Component</key> <real>0.220</real>
+  </dict>
+
+  <!-- Selected Text — bright silver -->
+  <key>Selected Text Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.957</real>
+    <key>Green Component</key><real>0.973</real>
+    <key>Blue Component</key> <real>1.000</real>
+  </dict>
+
+  <!-- Link — Sapphire Light #4A90E2 -->
+  <key>Link Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.290</real>
+    <key>Green Component</key><real>0.565</real>
+    <key>Blue Component</key> <real>0.886</real>
+  </dict>
+
+  <!-- Tab/badge -->
+  <key>Tab Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.063</real>
+    <key>Green Component</key><real>0.071</real>
+    <key>Blue Component</key> <real>0.118</real>
+  </dict>
+
+  <key>Badge Color</key>
+  <dict>
+    <key>Color Space</key><string>sRGB</string>
+    <key>Red Component</key>  <real>0.686</real>
+    <key>Green Component</key><real>0.796</real>
+    <key>Blue Component</key> <real>1.000</real>
+    <key>Alpha Component</key><real>0.6</real>
+  </dict>
+
+</dict>
+</plist>

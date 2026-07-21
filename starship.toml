@@ -1,0 +1,203 @@
+# ╭──────────────────────────────────────────────────────────────╮
+# │  ~/.config/starship.toml  ·  AygeaNight prompt  ·  🦊       │
+# ╰──────────────────────────────────────────────────────────────╯
+#
+# INSTALL:
+#   1. Install starship:  brew install starship
+#   2. Add to ~/.zshrc:   eval "$(starship init zsh)"
+#   3. Copy this file:    mkdir -p ~/.config && cp starship.toml ~/.config/starship.toml
+#
+# FONT: Requires a Nerd Font for icons to render correctly
+#   https://www.nerdfonts.com/font-downloads
+#   Set the Nerd Font in iTerm2 → Preferences → Profiles → Text → Font
+
+# ── Global ──────────────────────────────────────────────────────
+add_newline = true
+command_timeout = 1000
+
+# Prompt format — two lines
+# Line 1: fox icon · directory · git · lang versions · status
+# Line 2: the actual input character
+format = """
+[╭─](bold color:#2A3A5E)\
+$os\
+$username\
+$hostname\
+$directory\
+$git_branch\
+$git_status\
+$git_state\
+$nodejs\
+$python\
+$rust\
+$golang\
+$docker_context\
+$cmd_duration\
+$fill\
+$time
+[╰─](bold color:#2A3A5E)$character"""
+
+# ── OS icon ─────────────────────────────────────────────────────
+[os]
+disabled = false
+format = "[$symbol](bold fg:#6A8FD3) "
+
+[os.symbols]
+Macos   = ""
+Linux   = ""
+Ubuntu  = ""
+Arch    = ""
+Windows = ""
+
+# ── Username ─────────────────────────────────────────────────────
+[username]
+show_always = false
+format = "[$user](bold fg:#AFCBFF)[@](fg:#C0D1E6)"
+
+# ── Hostname ─────────────────────────────────────────────────────
+[hostname]
+ssh_only = false
+format = "[$hostname](bold fg:#DDEEFF) "
+trim_at = "."
+
+# ── Directory ────────────────────────────────────────────────────
+[directory]
+format = "[ $path]($style)[$read_only]($read_only_style) "
+style = "bold fg:#AFCBFF"
+read_only = " 󰌾"
+read_only_style = "fg:#D88CA8"
+truncation_length = 4
+truncation_symbol = "…/"
+home_symbol = "~"
+
+[directory.substitutions]
+"Documents" = "󰈙 "
+"Downloads" = " "
+"Music"     = " "
+"Pictures"  = " "
+"Desktop"   = " "
+"Developer" = " "
+
+# ── Git branch ───────────────────────────────────────────────────
+[git_branch]
+format = "[ $symbol$branch(:$remote_branch)]($style) "
+symbol = " "
+style = "bold fg:#D88CA8"
+truncation_length = 20
+truncation_symbol = "…"
+
+# ── Git status ───────────────────────────────────────────────────
+[git_status]
+format = "([$all_status$ahead_behind]($style) )"
+style = "fg:#F8C8DC"
+conflicted  = "⚡"
+ahead       = "⇡${count}"
+behind      = "⇣${count}"
+diverged    = "⇕⇡${ahead_count}⇣${behind_count}"
+up_to_date  = "✓"
+untracked   = "?${count}"
+stashed     = "󰏗 "
+modified    = "!${count}"
+staged      = "+${count}"
+renamed     = "»${count}"
+deleted     = "✘${count}"
+
+# ── Git state (rebasing, merging etc.) ───────────────────────────
+[git_state]
+format = "[$state($progress_current/$progress_total)]($style) "
+style = "bold fg:#C9B8E8"
+
+# ── Node.js ──────────────────────────────────────────────────────
+[nodejs]
+format = "[ $version]($style) "
+style = "fg:#A8D8F0"
+detect_files = ["package.json", ".nvmrc", ".node-version"]
+
+# ── Python ───────────────────────────────────────────────────────
+[python]
+format = "[ ${pyenv_prefix}$version($virtualenv)]($style) "
+style = "fg:#A8D8F0"
+
+# ── Rust ─────────────────────────────────────────────────────────
+[rust]
+format = "[ $version]($style) "
+style = "fg:#D88CA8"
+
+# ── Go ───────────────────────────────────────────────────────────
+[golang]
+format = "[ $version]($style) "
+style = "fg:#A8D8F0"
+
+# ── Docker ───────────────────────────────────────────────────────
+[docker_context]
+format = "[ $context]($style) "
+style = "fg:#6A8FD3"
+only_with_files = true
+
+# ── Command duration ─────────────────────────────────────────────
+[cmd_duration]
+format = "[ $duration]($style) "
+style = "fg:#C0D1E6"
+min_time = 2_000
+show_milliseconds = false
+
+# ── Fill (pushes time to the right) ──────────────────────────────
+[fill]
+symbol = " "
+
+# ── Time (right side) ────────────────────────────────────────────
+[time]
+disabled = false
+format = "[$time]($style) "
+style = "fg:#3B4A75"
+time_format = "%H:%M"
+
+# ── Prompt character ─────────────────────────────────────────────
+# Success: sapphire ❯   Error: pink ❯
+[character]
+success_symbol = "[❯](bold fg:#6A8FD3)"
+error_symbol   = "[❯](bold fg:#D88CA8)"
+vimcmd_symbol  = "[❮](bold fg:#C9B8E8)"
+
+# ── Status (exit code) ───────────────────────────────────────────
+[status]
+disabled = false
+format = "[$symbol$status]($style) "
+style = "fg:#D88CA8"
+symbol = "✘ "
+success_symbol = ""
+not_executable_symbol = " "
+not_found_symbol = "󰍉 "
+sigint_symbol = "󰂭 "
+signal_symbol = "󱐋 "
+
+# ── Package version ──────────────────────────────────────────────
+[package]
+format = "[ $version]($style) "
+style = "fg:#6A8FD3"
+
+# ── Memory usage (optional — uncomment to show) ──────────────────
+# [memory_usage]
+# disabled = false
+# format = "[$symbol ${ram_pct}]($style) "
+# style = "fg:#C0D1E6"
+# symbol = "󰍛 "
+# threshold = 70
+
+# ── Battery ──────────────────────────────────────────────────────
+[battery]
+full_symbol     = "󰁹 "
+charging_symbol = "󰂄 "
+discharging_symbol = "󰂀 "
+
+[[battery.display]]
+threshold = 20
+style = "bold fg:#D88CA8"
+
+[[battery.display]]
+threshold = 50
+style = "fg:#C0D1E6"
+
+[[battery.display]]
+threshold = 100
+style = "fg:#6A8FD3"
