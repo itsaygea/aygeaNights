@@ -1098,13 +1098,16 @@ menu_loop() {
 main() {
     # Minimal flag parsing (--uninstall, --help, --sudo, --motd)
     MOTD_ONLY=0
+    YES=0
+    FULL_MOTD=""   # set when --motd-replace/--motd-merge used WITHOUT being a shortcut
     for arg in "$@"; do
         case "$arg" in
             --sudo)      USE_SUDO=1 ;;
+            --yes|-y)    YES=1; USE_SUDO=1 ;;
             --uninstall) UNINSTALL=1 ;;
             --motd)      MOTD_ONLY=1 ;;
-            --motd-replace) MOTD_ONLY=1; AYN_MOTD_MODE=replace ;;
-            --motd-merge)   MOTD_ONLY=1; AYN_MOTD_MODE=merge ;;
+            --motd-replace) AYN_MOTD_MODE=replace; YES=1; USE_SUDO=1 ;;
+            --motd-merge)   AYN_MOTD_MODE=merge;   YES=1; USE_SUDO=1 ;;
             -h|--help)   usage ;;
             *)           warn "Unknown flag: $arg" ;;
         esac
