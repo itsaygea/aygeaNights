@@ -73,14 +73,9 @@ step() {
 
 banner() {
     printf '\n'
-    printf '%s    _   _                      _   _ _   _ \n' "$C_BLUE"
-    printf '%s   / \\ | |__   __ _ _ __   ___| | | | \\ | |\n' "$C_BLUE"
-    printf '%s  / _ \\| `_ \\ / _` | `_ \\ / _ \\ | | |  \\| |\n' "$C_BLUE"
-    printf '%s / ___ \\ | | | (_| | | | |  __/ |_| | |\\  |\n' "$C_BLUE"
-    printf '%s/_/   \\_\\_| |_| |\\__,_|_| |_|\\___/\\___/|_| \\_|\n' "$C_BLUE"
-    printf '%s         Night\n' "$C_PINK"
-    printf '%s\n' "$C_RESET"
-    printf '%s  Tokyo Night base  ·  Aygea brand accents  ·  v%s%s\n' "$C_DIM" "$VERSION" "$C_RESET"
+    printf '%s%sAygea%s%sNight%s  %s🦊%s\n' \
+        "$C_BOLD" "$C_BLUE" "$C_PINK" "$C_BOLD" "$C_RESET" "$C_DIM" "$C_RESET"
+    printf '%sTokyo Night base  ·  Aygea brand accents  ·  v%s%s\n' "$C_DIM" "$VERSION" "$C_RESET"
     printf '\n'
 }
 
