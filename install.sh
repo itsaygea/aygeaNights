@@ -231,10 +231,29 @@ backup_file() {
 }
 
 # ── Helper: idempotent rc line insertion ─────────────────────────
+# Strips any existing marker block(s) with the same comment first, so
+# re-running the installer (or upgrading the line content, e.g.
+# aygeafetch -> aynight) never stacks duplicate blocks.
 ensure_rc_line() {
     local file="$1" line="$2" pos="$3" comment="${4:-}"
     [[ -f "$file" ]] || touch "$file"
 
+    # Remove any prior block(s) for this exact comment (dedup across runs)
+    if [[ -n "$comment" ]]; then
+        local tmp; tmp=$(mktemp)
+        local in_old=0
+        local needle="$MARKER_BEGIN  ($comment)"
+        while IFS= read -r rl || [[ -n "$rl" ]]; do
+            if [[ "$rl" == *"$needle"* ]]; then in_old=1; continue; fi
+            if [[ "$in_old" -eq 1 && "$rl" == *"$MARKER_END"* ]]; then in_old=0; continue; fi
+            [[ "$in_old" -eq 0 ]] && printf '%s\n' "$rl"
+        done < "$file" > "$tmp"
+        # drop trailing blank lines, keep file tidy
+        awk 'NF{p=1} p' "$tmp" > "${tmp}.2" && mv "${tmp}.2" "$file"
+        rm -f "$tmp"
+    fi
+
+    # Already present (exact line)? Nothing to do.
     if grep -qF "$line" "$file" 2>/dev/null; then
         return 0
     fi
@@ -244,11 +263,10 @@ ensure_rc_line() {
     block="$block"$'\n'"$line"$'\n'"$MARKER_END"
 
     if [[ "$pos" == "top" ]]; then
-        local tmp
-        tmp=$(mktemp)
-        printf '%s\n' "$block" > "$tmp"
-        cat "$file" >> "$tmp"
-        mv "$tmp" "$file"
+        local tmp2; tmp2=$(mktemp)
+        printf '%s\n' "$block" > "$tmp2"
+        cat "$file" >> "$tmp2"
+        mv "$tmp2" "$file"
     else
         printf '\n%s\n' "$block" >> "$file"
     fi

@@ -506,18 +506,33 @@ INFO+=("$(_kv IPv4     "$(get_ipv4)")")
 INFO+=("$(_kv IPv6     "$(get_ipv6)")")
 
 # ════════════════════════════════════════════════════════════════
-# Render side by side
+# Render side by side (art vertically centered against info column)
 # ════════════════════════════════════════════════════════════════
 art_n=${#ART[@]}
 info_n=${#INFO[@]}
-info_start=1        # info begins near top, art spans more rows
-max_lines=$art_n
-(( info_start + info_n > max_lines )) && max_lines=$(( info_start + info_n ))
+# When info is taller than art, center the art block vertically so the
+# blank-left tail (Users/IPv6 rows) is balanced top + bottom.
+if (( info_n > art_n )); then
+    art_start=$(( (info_n - art_n) / 2 ))
+else
+    art_start=0
+fi
+info_start=0
+max_lines=$(( info_n > art_n ? info_n : art_n ))
+(( art_start + art_n > max_lines )) && max_lines=$(( art_start + art_n ))
 
 for (( row=0; row<max_lines; row++ )); do
-    if (( row < art_n )); then _pad "${ART[$row]}"; else printf '%*s' "$ART_W" ""; fi
-    printf '%*s' "$GAP" ""
+    aidx=$(( row - art_start ))
     idx=$(( row - info_start ))
+    # No art on this row AND no more art coming? Print info flush-left.
+    if (( aidx >= art_n || aidx < 0 )); then
+        if (( idx >= 0 && idx < info_n )); then printf '%s' "${INFO[$idx]}"; fi
+        printf '\n'
+        continue
+    fi
+    # Art present: pad + info at fixed column.
+    _pad "${ART[$aidx]}"
+    printf '%*s' "$GAP" ""
     if (( idx >= 0 && idx < info_n )); then printf '%s' "${INFO[$idx]}"; fi
     printf '\n'
 done
