@@ -33,7 +33,7 @@ Tokyo Night base with Aygea brand accent colors. Baby blue, sapphire, pink, silv
 curl -fsSL https://raw.githubusercontent.com/itsaygea/aygeaNights/main/install.sh | bash
 ```
 
-Flags: `--sudo` · `--skip-fonts` · `--skip-tmux` · `--skip-starship` · `--skip-fetch` · `--uninstall`
+Flags: `--sudo` · `--motd` · `--skip-fonts` · `--skip-tmux` · `--skip-starship` · `--skip-fetch` · `--uninstall`
 
 The installer auto-detects your OS (macOS, Ubuntu/Debian, Arch/CachyOS/Manjaro) and your shell (zsh or bash), installs dependencies, and configures everything. It asks about sudo on Linux; defaults to user-level installs otherwise. The fetch step builds a single self-contained `aynight` binary in `~/.local/bin` (engine + art inlined — no extra files scattered around).
 
@@ -55,7 +55,7 @@ Or set it permanently: `export AYNIGHT_ART=face` in your shell rc. The raw art l
 
 The fetch shows Ubuntu-MOTD-style info: pending **updates** count (apt/pacman/dnf/brew — green when 0, pink when pending), memory/disk/swap meters, load average, process count, logged-in users, and IPv4/IPv6 addresses.
 
-Optional **Login MOTD** step (Linux, needs sudo) drops a script at `/etc/update-motd.d/99-aygea` (Ubuntu/Debian) or `/etc/profile.d/aygea-motd.sh` (Arch) so `aynight` runs at every SSH/console login — like the distro welcome banner, but yours.
+Optional **Login MOTD** step (Linux, sudo) drops a script at `/etc/update-motd.d/99-aygea` (Ubuntu/Debian) or `/etc/profile.d/aynight-motd.sh` (Arch/CachyOS) so `aynight` runs at every SSH/console login — like the distro welcome banner, but yours. It asks Yes/No before writing, backs up `/etc/motd` to `.ayn.bak.<ts>`, and `--uninstall` restores it. Re-enable later with `./install.sh --motd`.
 
 ## Font
 
