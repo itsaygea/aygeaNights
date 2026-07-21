@@ -339,7 +339,7 @@ get_ram_str() {
         pages_act=$(vm_stat 2>/dev/null | awk '/Pages active/{gsub(/[^0-9]/,"",$0); print}')
         pages_wired=$(vm_stat 2>/dev/null | awk '/Pages wired down:/{gsub(/[^0-9]/,"",$0); print}')
         pages_act=${pages_act:-0}; pages_wired=${pages_wired:-0}; pgsize=${pgsize:-0}
-        tot_kb=$(sysctl -n hw.memsize 2>/dev/null)
+        tot_kb=$(( $(sysctl -n hw.memsize 2>/dev/null || echo 0) / 1024 ))  # hw.memsize is bytes
         used_kb=$(( (pages_act + pages_wired) * pgsize / 1024 ))
         (( tot_kb > 0 )) || tot_kb=$used_kb
     else printf 'N/A\t0'; return; fi
