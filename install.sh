@@ -503,15 +503,16 @@ install_motd() {
         fi
 
         if [[ "$mode" == "replace" ]]; then
-            # Move motd.d snippets aside (reversible; tracked for restore)
+            # Move motd.d + issue.d snippets aside (reversible; tracked for restore)
             maybe_sudo mkdir -p /etc/motd.d
             local moved=0
             shopt -s nullglob
-            for s in /etc/motd.d/*; do
+            for s in /etc/motd.d/* /etc/issue.d/*; do
+                [[ -e "$s" ]] || continue
                 maybe_sudo mv "$s" "$s.ayn.hidden" 2>/dev/null && moved=$((moved+1)) || true
             done
             shopt -u nullglob
-            (( moved > 0 )) && success "Hid $moved motd.d snippet(s) (replace mode)"
+            (( moved > 0 )) && success "Hid $moved motd.d/issue.d snippet(s) (replace mode)"
         fi
 
         local pd="/etc/profile.d/aynight-motd.sh"
@@ -777,7 +778,7 @@ do_uninstall() {
     # Arch: restore hidden motd.d snippets (replace mode hid them as .ayn.hidden)
     shopt -s nullglob
     local hid=0
-    for s in /etc/motd.d/*.ayn.hidden; do
+    for s in /etc/motd.d/*.ayn.hidden /etc/issue.d/*.ayn.hidden; do
         local orig="${s%.ayn.hidden}"
         { mv "$s" "$orig" 2>/dev/null || sudo mv "$s" "$orig" 2>/dev/null; } && hid=$((hid+1)) || true
     done
