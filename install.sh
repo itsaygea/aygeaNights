@@ -621,7 +621,9 @@ command -v aynight >/dev/null 2>&1 && aynight --fox
     printf '\n'
     # apt updates — prefer update-notifier's apt-check (fast, TOTAL;SECURITY)
     if [[ -x /usr/lib/update-notifier/apt-check ]]; then
-        IFS=';' read -r n sec < <(/usr/lib/update-notifier/apt-check 2>/dev/null)
+        # apt-check writes "TOTAL;SECURITY" to STDERR
+        local _out; _out=$(/usr/lib/update-notifier/apt-check 2>&1 1>/dev/null)
+        IFS=';' read -r n sec <<< "$_out"
         n=${n:-0}; sec=${sec:-0}
         (( n > 0 )) && printf '%s  ↑ %d apt updates available%s' "$PINK" "$n" "$RESET"
         (( sec > 0 )) && printf '%s (%d security)' "$PINK" "$sec"
