@@ -475,13 +475,17 @@ _ayn_backup() {  # path
 
 # Replace a file with a blank no-op (backing up first). For executable
 # scripts, writes '#!/bin/sh\nexit 0'; for text files, empties it.
-_ayn_blank() {  # path
+_ayn_blank() {  # path [script]
     local src="$1"
     [[ -e "$src" ]] || return 0
     _ayn_backup "$src"
-    if [[ -x "$src" ]]; then
-        # executable script → no-op (daemons still run it, it does nothing)
+    local was_exec=0
+    [[ -x "$src" ]] && was_exec=1
+    if [[ $was_exec -eq 1 ]] || [[ "$src" == */update-motd.d/* ]]; then
+        # executable motd script → no-op, keep executable so PAM run-parts
+        # semantics are unchanged (runs it, it does nothing)
         printf '#!/bin/sh\nexit 0\n' | maybe_sudo tee "$src" >/dev/null
+        maybe_sudo chmod +x "$src"
     else
         # text file → empty
         : | maybe_sudo tee "$src" >/dev/null
