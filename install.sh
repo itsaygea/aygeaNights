@@ -117,6 +117,7 @@ ${C_SAPPHIRE}Usage:${C_RESET}
 ${C_SAPPHIRE}Flags:${C_RESET}
   --sudo            Use sudo for system-wide installs (non-interactive)
   --motd            Install just the login MOTD (Linux, prompts for sudo)
+  --no-lastlog      Hide the "Last login:" line (sshd PrintLastLog)
   --uninstall       Remove AygeaNight (restore backups)
   -h, --help        Show this help
 
@@ -343,6 +344,10 @@ detect_locale_installed() {
 detect_motd_installed() {
     [[ -x /etc/update-motd.d/99-aygea ]] && return 0
     [[ -f /etc/profile.d/aygea-motd.sh ]]
+}
+
+detect_no_lastlog() {
+    grep -qE '^PrintLastLog\s+no' /etc/ssh/sshd_config 2>/dev/null
 }
 
 # ══════════════════════════════════════════════════════════════════
@@ -614,15 +619,16 @@ command -v aynight >/dev/null 2>&1 && aynight --fox
 # 2) compact update / security / firmware notices (best effort, non-fatal)
 {
     printf '\n'
-    # apt updates
-    if command -v apt >/dev/null 2>&1; then
+    # apt updates — prefer update-notifier's apt-check (fast, TOTAL;SECURITY)
+    if [[ -x /usr/lib/update-notifier/apt-check ]]; then
+        IFS=';' read -r n sec < <(/usr/lib/update-notifier/apt-check 2>/dev/null)
+        n=${n:-0}; sec=${sec:-0}
+        (( n > 0 )) && printf '%s  ↑ %d apt updates available%s' "$PINK" "$n" "$RESET"
+        (( sec > 0 )) && printf '%s (%d security)' "$PINK" "$sec"
+        (( n > 0 )) && printf '%s (apt upgrade)\n' "$RESET"
+    elif command -v apt >/dev/null 2>&1; then
         n=$(apt list --upgradable 2>/dev/null | grep -c '/')
         (( n > 0 )) && printf '%s  ↑ %d apt updates available%s (apt upgrade)\n' "$PINK" "$n" "$RESET"
-        # ESM/security (Ubuntu Pro) — needs ubuntu-security-status or pro
-        if command -v pro >/dev/null 2>&1; then
-            esm=$(pro security-status 2>/dev/null | awk '/ESM Apps/{print $1; exit}')
-            [[ -n "$esm" ]] && printf '%s  ⚠ %s additional security updates via ESM%s (Ubuntu Pro)\n' "$PINK" "$esm" "$RESET"
-        fi
     elif command -v pacman >/dev/null 2>&1; then
         n=$(pacman -Qu 2>/dev/null | grep -c .)
         (( n > 0 )) && printf '%s  ↑ %d pacman updates available%s (pacman -Syu)\n' "$PINK" "$n" "$RESET"
@@ -631,9 +637,9 @@ command -v aynight >/dev/null 2>&1 && aynight --fox
         (( n > 0 )) && printf '%s  ↑ %d dnf updates available%s (dnf upgrade)\n' "$PINK" "$n" "$RESET"
     fi
 
-    # firmware (fwupd)
+    # firmware (fwupd) — count "Devices upgrades available" line devices
     if command -v fwupdmgr >/dev/null 2>&1; then
-        fwn=$(fwupdmgr get-updates 2>/dev/null | grep -cE '^[0-9]+\.' || true)
+        fwn=$(fwupdmgr get-updates 2>/dev/null | grep -cE '^[^[:space:]].*:$' || true)
         (( ${fwn:-0} > 0 )) && printf '%s  ⚙ %s firmware update(s) available%s (fwupdmgr update)\n' "$BLUE" "$fwn" "$RESET"
     fi
 
@@ -661,6 +667,28 @@ EOF
         success "MOTD installed (merge mode) — aynight appended below Ubuntu info"
     fi
     info "Disable: chmod -x $motd_dir/99-aygea"
+}
+
+# ── Disable the "Last login:" line (sshd PrintLastLog, Linux) ──
+install_no_lastlog() {
+    [[ "$OS" == "macos" ]] && { info "Last-login disable skipped (macOS)"; return 0; }
+    local cfg=/etc/ssh/sshd_config
+    [[ -f "$cfg" ]] || { info "No $cfg — skipping last-login disable"; return 0; }
+    # already done?
+    if grep -qE '^PrintLastLog\s+no' "$cfg" 2>/dev/null; then
+        info "Last-login already disabled"
+        return 0
+    fi
+    _ayn_backup "$cfg"
+    # replace existing PrintLastLog line, or append
+    if maybe_sudo grep -qiE '^#?\s*PrintLastLog' "$cfg"; then
+        maybe_sudo sed -i -E 's/^[#[:space:]]*PrintLastLog.*/PrintLastLog no/' "$cfg"
+    else
+        printf '\nPrintLastLog no\n' | maybe_sudo tee -a "$cfg" >/dev/null
+    fi
+    # restart ssh (ssh or sshd service name varies)
+    { maybe_sudo systemctl restart ssh 2>/dev/null || maybe_sudo systemctl restart sshd 2>/dev/null; } || true
+    success "Disabled 'Last login:' line in $cfg (--uninstall restores)"
 }
 
 install_starship() {
@@ -904,6 +932,15 @@ build_menu() {
             add_item "Login MOTD" "aynight at login" "not installed" 1 1 "install_motd"
         fi
     fi
+
+    # 8. Hide "Last login:" line (Linux sshd, needs sudo)
+    if [[ "$OS" != "macos" ]]; then
+        if detect_no_lastlog; then
+            add_item "Hide last-login" "PrintLastLog no" "already hidden" 1 1 "install_no_lastlog"
+        else
+            add_item "Hide last-login" "PrintLastLog no" "not hidden" 1 1 "install_no_lastlog"
+        fi
+    fi
 }
 
 # ── Draw a single menu line ─────────────────────────────────────
@@ -1093,6 +1130,7 @@ menu_loop() {
 main() {
     # Minimal flag parsing (--uninstall, --help, --sudo, --motd)
     MOTD_ONLY=0
+    LASTLOG_ONLY=0
     YES=0
     FULL_MOTD=""   # set when --motd-replace/--motd-merge used WITHOUT being a shortcut
     for arg in "$@"; do
@@ -1103,6 +1141,7 @@ main() {
             --motd)      MOTD_ONLY=1 ;;
             --motd-replace) AYN_MOTD_MODE=replace; YES=1; USE_SUDO=1 ;;
             --motd-merge)   AYN_MOTD_MODE=merge;   YES=1; USE_SUDO=1 ;;
+            --no-lastlog)  LASTLOG_ONLY=1; USE_SUDO=1 ;;
             -h|--help)   usage ;;
             *)           warn "Unknown flag: $arg" ;;
         esac
@@ -1127,6 +1166,20 @@ main() {
             AYN_MOTD_CONFIRM=y install_motd
         else
             info "MOTD not supported on macOS"
+        fi
+        exit 0
+    fi
+
+    # --no-lastlog: jump straight to disabling the "Last login:" line
+    if [[ $LASTLOG_ONLY -eq 1 ]]; then
+        banner
+        if [[ "$OS" != "macos" ]]; then
+            if [[ $USE_SUDO -eq 0 ]]; then
+                ask_yn "Editing sshd needs sudo. Use sudo?" && USE_SUDO=1
+            fi
+            install_no_lastlog
+        else
+            info "Last-login disable not supported on macOS"
         fi
         exit 0
     fi
