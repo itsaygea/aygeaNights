@@ -639,10 +639,15 @@ command -v aynight >/dev/null 2>&1 && aynight --fox
         (( n > 0 )) && printf '%s  ↑ %d dnf updates available%s (dnf upgrade)\n' "$PINK" "$n" "$RESET"
     fi
 
-    # firmware (fwupd) — count "Devices upgrades available" line devices
+    # firmware (fwupd) — count real upgrades (skip "no updates" / "latest")
     if command -v fwupdmgr >/dev/null 2>&1; then
-        fwn=$(fwupdmgr get-updates 2>/dev/null | grep -cE '^[^[:space:]].*:$' || true)
-        (( ${fwn:-0} > 0 )) && printf '%s  ⚙ %s firmware update(s) available%s (fwupdmgr update)\n' "$BLUE" "$fwn" "$RESET"
+        local fwout; fwout=$(fwupdmgr get-updates 2>/dev/null)
+        if ! grep -qiE 'No updates available|^No devices' <<< "$fwout"; then
+            # count upgrade-device bullets (• DeviceName) excluding the
+            # "latest" / "no available" status sections
+            fwn=$(awk '/^Devices with .*upgrade/{u=1;next} /^Devices with/{u=0} u&&/^•/{c++} END{print c+0}' <<< "$fwout")
+            (( ${fwn:-0} > 0 )) && printf '%s  ⚙ %s firmware update(s) available%s (fwupdmgr update)\n' "$BLUE" "$fwn" "$RESET"
+        fi
     fi
 
     # reboot required (Linux)
