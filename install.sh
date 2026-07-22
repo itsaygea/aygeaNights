@@ -518,11 +518,10 @@ _ayn_restore_all() {
 install_motd() {
     [[ "$OS" == "macos" ]] && { info "MOTD install skipped (macOS)"; return 0; }
 
-    # Already installed? Nothing to do.
-    if detect_motd_installed; then
-        info "Login MOTD already installed"
-        return 0
-    fi
+    # Always (re)write the motd script so notice-logic fixes propagate on
+    # re-install. The _ayn_backup/_ayn_blank steps are idempotent.
+    local already=0
+    detect_motd_installed && already=1
 
     local stamp; stamp=$(date +%Y%m%d%H%M%S)
     local motd_dir="/etc/update-motd.d"
