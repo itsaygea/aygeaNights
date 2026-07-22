@@ -480,11 +480,11 @@ _ayn_blank() {  # path
     [[ -e "$src" ]] || return 0
     _ayn_backup "$src"
     if [[ -x "$src" ]]; then
-        local body='#!/bin/sh
-exit 0'
-        { printf '%s\n' "$body" > "$src" 2>/dev/null || printf '%s\n' "$body" | sudo tee "$src" >/dev/null; } || true
+        # executable script → no-op (daemons still run it, it does nothing)
+        printf '#!/bin/sh\nexit 0\n' | maybe_sudo tee "$src" >/dev/null
     else
-        { : > "$src" 2>/dev/null || sudo tee "$src" >/dev/null </dev/null; } || true
+        # text file → empty
+        : | maybe_sudo tee "$src" >/dev/null
     fi
 }
 
