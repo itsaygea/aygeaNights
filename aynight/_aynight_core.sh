@@ -493,7 +493,7 @@ get_users() {
     printf '%s' "${n:-0}"
 }
 
-# Fast non-blocking brew updates check with cache TTL
+# Fast non-blocking brew updates check with cache TTL + lock invalidation
 _get_brew_updates() {
     local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/aynight"
     local cache_file="$cache_dir/brew_updates"
@@ -501,7 +501,7 @@ _get_brew_updates() {
     local now count=""
 
     if [[ "${AYNIGHT_SYNC_UPDATES:-0}" == "1" ]]; then
-        count=$(HOMEBREW_NO_AUTO_UPDATE=1 brew outdated --formula -q 2>/dev/null | grep -c .)
+        count=$(HOMEBREW_NO_AUTO_UPDATE=1 brew outdated --formula -q 2>/dev/null | wc -l | tr -d ' ')
         printf '%s' "${count:-0}"
         return
     fi
@@ -513,13 +513,26 @@ _get_brew_updates() {
         count=$(<"$cache_file")
     fi
 
-    if [[ ! -f "$cache_file" || $(( now - mtime )) -ge ttl ]]; then
+    # Check if a recent brew install/upgrade touched the locks dir
+    local locks_mtime=0
+    for cand in "${HOMEBREW_PREFIX:-}/var/homebrew/locks" "/opt/homebrew/var/homebrew/locks" "/usr/local/var/homebrew/locks"; do
+        if [[ -d "$cand" ]]; then
+            locks_mtime=$(stat -f %m "$cand" 2>/dev/null || stat -c %Y "$cand" 2>/dev/null || echo 0)
+            break
+        fi
+    done
+
+    # Refresh in background if cache is missing, expired, or invalidated by a recent brew action
+    if [[ ! -f "$cache_file" || $(( now - mtime )) -ge ttl || $(( locks_mtime > mtime )) -eq 1 ]]; then
         (
             mkdir -p "$cache_dir" 2>/dev/null
             local fresh
-            fresh=$(HOMEBREW_NO_AUTO_UPDATE=1 brew outdated --formula -q 2>/dev/null | grep -c .)
+            fresh=$(HOMEBREW_NO_AUTO_UPDATE=1 brew outdated --formula -q 2>/dev/null | wc -l | tr -d ' ')
             printf '%s' "${fresh:-0}" > "$cache_file.tmp.$$" 2>/dev/null && mv -f "$cache_file.tmp.$$" "$cache_file" 2>/dev/null
         ) &>/dev/null & disown 2>/dev/null
+        if (( locks_mtime > mtime )); then
+            count="0"
+        fi
     fi
 
     if [[ "$count" =~ ^[0-9]+$ ]]; then
