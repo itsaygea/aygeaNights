@@ -35,15 +35,33 @@ export AYNIGHT_ART
 AYNIGHT_OS="macOS"
 
 get_os() {
-    local name ver
-    name=$(sw_vers -productName 2>/dev/null) || name="macOS"
-    ver=$(sw_vers -productVersion 2>/dev/null) || ver=""
-    printf '%s %s' "$name" "$ver"
+    local name="macOS" ver="" out
+    if command -v sw_vers >/dev/null 2>&1; then
+        out=$(sw_vers 2>/dev/null)
+        name=$(awk -F':\t*' '/ProductName/{print $2}' <<< "$out")
+        ver=$(awk -F':\t*' '/ProductVersion/{print $2}' <<< "$out")
+    fi
+    if [[ -n "$ver" ]]; then
+        printf '%s %s' "${name:-macOS}" "$ver"
+    else
+        printf '%s' "${name:-macOS}"
+    fi
 }
 
 get_pkgs() {
-    local n
-    n=$(brew list --formula 2>/dev/null | wc -l | tr -d ' ')
+    local n=0 cellar=""
+    for cand in "${HOMEBREW_CELLAR:-}" "${HOMEBREW_PREFIX:-}/Cellar" "/opt/homebrew/Cellar" "/usr/local/Cellar"; do
+        [[ -n "$cand" && -d "$cand" ]] && { cellar="$cand"; break; }
+    done
+    if [[ -n "$cellar" ]]; then
+        local nf
+        nf=$(find "$cellar" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l | tr -d ' ')
+        n=$(( n + ${nf:-0} ))
+    elif command -v brew >/dev/null 2>&1; then
+        local nf
+        nf=$(brew list --formula 2>/dev/null | wc -l | tr -d ' ')
+        n=$(( n + ${nf:-0} ))
+    fi
     printf '%s' "${n:-N/A}"
 }
 

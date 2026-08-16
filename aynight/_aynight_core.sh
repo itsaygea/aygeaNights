@@ -195,18 +195,12 @@ unset _a _base
 
 
 # ── visible length (strips ANSI) ────────────────────────────────
+shopt -s extglob 2>/dev/null || true
 _vlen() {
-    local s="$1" out="" i=0 len=${#1} char skip=0
-    while (( i < len )); do
-        char="${s:$i:1}"
-        if (( skip )); then
-            case "$char" in [a-zA-Z]) skip=0 ;; esac
-            (( i++ )) && continue
-        fi
-        if [[ "$char" == $(printf '\033') ]]; then skip=1; (( i++ )) && continue; fi
-        out="${out}${char}"; (( i++ ))
-    done
-    printf '%s' "${#out}"
+    local clean="$1"
+    clean="${clean//$'\033'\[*([0-9;])m/}"
+    clean="${clean//$'\033'\[*([0-9;])@([a-zA-Z])/}"
+    printf '%s' "${#clean}"
 }
 _pad() {
     local vis; vis=$(_vlen "$1")
@@ -267,7 +261,7 @@ _gpu_short() {
     case "$low" in
         *nvidia*|*geforce*|*quadro*|*rtx*|*gtx*)   vendor="NVIDIA" ;;
         *intel*)                                    vendor="Intel" ;;
-        *apple*|*m1*|*m2*|*m3*|*m4)                  vendor="Apple" ;;
+        *apple*|*m1*|*m2*|*m3*|*m4*)                vendor="Apple" ;;
         *advanced\ micro*|*\ amd/*|*radeon*|*navi*|*\.amd\.com*|*amd/ati*) vendor="AMD" ;;
     esac
 
@@ -312,10 +306,36 @@ get_gpu() {
             local raw=${line#*:*:}; raw=${raw# }
             gpus+=( "$(_gpu_short "$raw")" )
         done < <(lspci 2>/dev/null | grep -iE 'vga|3d|display')
-    elif [[ "$(uname -s 2>/dev/null)" == "Darwin" ]] && command -v system_profiler >/dev/null 2>&1; then
-        while IFS= read -r line; do
-            gpus+=( "$(_gpu_short "$line")" )
-        done < <(system_profiler SPDisplaysDataType 2>/dev/null | awk -F': +' '/Chipset Model/{print $2}')
+    elif [[ "$(uname -s 2>/dev/null)" == "Darwin" ]]; then
+        # Apple Silicon (M1/M2/M3/M4): SoC unified GPU matches CPU brand string
+        if [[ "$(uname -m 2>/dev/null)" == "arm64" ]]; then
+            local brand
+            brand=$(sysctl -n machdep.cpu.brand_string 2>/dev/null)
+            [[ -n "$brand" ]] && gpus+=( "$(_gpu_short "$brand")" )
+        fi
+
+        # Intel / Discrete GPU: fast IOKit registry query (<5ms vs ~2s system_profiler)
+        if [[ ${#gpus[@]} -eq 0 ]] && command -v ioreg >/dev/null 2>&1; then
+            while IFS= read -r model; do
+                [[ -z "$model" ]] && continue
+                gpus+=( "$(_gpu_short "$model")" )
+            done < <(ioreg -rd1 -c IOPCIDevice 2>/dev/null | awk -F'"' '/"model" = <"/{print $4}' | tr -d '\0')
+
+            if [[ ${#gpus[@]} -eq 0 ]]; then
+                while IFS= read -r model; do
+                    [[ -z "$model" ]] && continue
+                    gpus+=( "$(_gpu_short "$model")" )
+                done < <(ioreg -rd1 -c IOAccelerator 2>/dev/null | awk -F'"' '/"model" =/{print $4}' | tr -d '\0')
+            fi
+        fi
+
+        # Slow fallback only if fast methods failed
+        if [[ ${#gpus[@]} -eq 0 ]] && command -v system_profiler >/dev/null 2>&1; then
+            while IFS= read -r line; do
+                [[ -z "$line" ]] && continue
+                gpus+=( "$(_gpu_short "$line")" )
+            done < <(system_profiler SPDisplaysDataType 2>/dev/null | awk -F': +' '/Chipset Model/{print $2}')
+        fi
     fi
 
     [[ ${#gpus[@]} -eq 0 ]] && { printf 'N/A'; return; }
@@ -335,19 +355,20 @@ get_ram_str() {
         [[ -n "${av_kb:-}" ]] || av_kb=0
         used_kb=$(( tot_kb - av_kb )); (( used_kb < 0 )) && used_kb=0
     elif command -v vm_stat >/dev/null 2>&1 && command -v sysctl >/dev/null 2>&1; then
-        local pgsize pages_free pages_act pages_inact pages_wired
-        pgsize=$(sysctl -n hw.pagesize 2>/dev/null)
+        local tot_bytes pgsize
+        read -r tot_bytes pgsize < <(sysctl -n hw.memsize hw.pagesize 2>/dev/null)
+        tot_kb=$(( (${tot_bytes:-0}) / 1024 ))
+        pgsize=${pgsize:-4096}
         # macOS "Memory Used" ≈ active + wired + compressor + speculative
-        # (matches Activity Monitor headline; inactive/cached/free excluded)
-        local pa pw pc ps
-        pa=$(vm_stat 2>/dev/null | awk '/Pages active/{gsub(/[^0-9]/,"",$0); print}')
-        pw=$(vm_stat 2>/dev/null | awk '/Pages wired down:/{gsub(/[^0-9]/,"",$0); print}')
-        pc=$(vm_stat 2>/dev/null | awk '/occupied by compressor/{gsub(/[^0-9]/,"",$0); print}')
-        ps=$(vm_stat 2>/dev/null | awk '/Pages speculative/{gsub(/[^0-9]/,"",$0); print}')
-        pgsize=$(sysctl -n hw.pagesize 2>/dev/null)
-        pa=${pa:-0}; pw=${pw:-0}; pc=${pc:-0}; ps=${ps:-0}; pgsize=${pgsize:-0}
-        tot_kb=$(( $(sysctl -n hw.memsize 2>/dev/null || echo 0) / 1024 ))  # hw.memsize is bytes
-        used_kb=$(( (pa + pw + pc + ps) * pgsize / 1024 ))
+        # Single vm_stat call + single awk pass (<3ms vs 4 separate vm_stat invocations)
+        used_kb=$(vm_stat 2>/dev/null | awk -v ps="$pgsize" '
+            /Pages active/               { gsub(/[^0-9]/,"",$0); pa=$0 }
+            /Pages wired down/           { gsub(/[^0-9]/,"",$0); pw=$0 }
+            /occupied by compressor/     { gsub(/[^0-9]/,"",$0); pc=$0 }
+            /Pages speculative/          { gsub(/[^0-9]/,"",$0); ps=$0 }
+            END { print int(((pa+0) + (pw+0) + (pc+0) + (ps+0)) * (ps+0) / 1024) }
+        ')
+        used_kb=${used_kb:-0}
         (( tot_kb > 0 )) || tot_kb=$used_kb
     else printf 'N/A\t0'; return; fi
     local ug tg pct
@@ -436,6 +457,23 @@ get_swap_str() {
         tg=$(awk -v k="$t" 'BEGIN{printf "%.0f",k/1048576}')
         pct=$(( u * 100 / t ))
         printf '%sG / %sG\t%d' "$ug" "$tg" "$pct"
+    elif command -v sysctl >/dev/null 2>&1 && [[ "$(uname -s 2>/dev/null)" == "Darwin" ]]; then
+        local swap_raw
+        swap_raw=$(sysctl -n vm.swapusage 2>/dev/null)
+        if [[ -n "$swap_raw" ]]; then
+            local tot_m used_m
+            tot_m=$(awk -F'total = ' '{print $2}' <<< "$swap_raw" | awk '{print $1}' | tr -d 'M')
+            used_m=$(awk -F'used = ' '{print $2}' <<< "$swap_raw" | awk '{print $1}' | tr -d 'M')
+            tot_m=${tot_m%.*}
+            used_m=${used_m%.*}
+            if [[ "$tot_m" =~ ^[0-9]+$ ]] && (( tot_m > 0 )); then
+                local ug tg pct
+                ug=$(awk -v m="${used_m:-0}" 'BEGIN{printf "%.1f",m/1024}')
+                tg=$(awk -v m="$tot_m" 'BEGIN{printf "%.0f",m/1024}')
+                pct=$(( (${used_m:-0}) * 100 / tot_m ))
+                printf '%sG / %sG\t%d' "$ug" "$tg" "$pct"
+            fi
+        fi
     fi
 }
 
@@ -444,7 +482,7 @@ get_swap_str() {
 get_procs() {
     local n=""
     [[ -r /proc/stat ]] && n=$(find /proc -maxdepth 1 -name '[0-9]*' 2>/dev/null | wc -l | tr -d ' ')
-    [[ -z "$n" ]] && command -v ps >/dev/null 2>&1 && n=$(ps -e 2>/dev/null | wc -l | tr -d ' ')
+    [[ -z "$n" ]] && command -v ps >/dev/null 2>&1 && n=$(ps -A -o pid= 2>/dev/null | wc -l | tr -d ' ')
     printf '%s' "${n:-N/A}"
 }
 
@@ -453,6 +491,42 @@ get_users() {
     local n=""
     command -v who >/dev/null 2>&1 && n=$(who 2>/dev/null | wc -l | tr -d ' ')
     printf '%s' "${n:-0}"
+}
+
+# Fast non-blocking brew updates check with cache TTL
+_get_brew_updates() {
+    local cache_dir="${XDG_CACHE_HOME:-$HOME/.cache}/aynight"
+    local cache_file="$cache_dir/brew_updates"
+    local ttl="${AYNIGHT_UPDATE_TTL:-3600}"  # 1 hour default
+    local now count=""
+
+    if [[ "${AYNIGHT_SYNC_UPDATES:-0}" == "1" ]]; then
+        count=$(HOMEBREW_NO_AUTO_UPDATE=1 brew outdated --formula -q 2>/dev/null | grep -c .)
+        printf '%s' "${count:-0}"
+        return
+    fi
+
+    now=$(date +%s 2>/dev/null || echo 0)
+    local mtime=0
+    if [[ -f "$cache_file" ]]; then
+        mtime=$(stat -f %m "$cache_file" 2>/dev/null || stat -c %Y "$cache_file" 2>/dev/null || echo 0)
+        count=$(<"$cache_file")
+    fi
+
+    if [[ ! -f "$cache_file" || $(( now - mtime )) -ge ttl ]]; then
+        (
+            mkdir -p "$cache_dir" 2>/dev/null
+            local fresh
+            fresh=$(HOMEBREW_NO_AUTO_UPDATE=1 brew outdated --formula -q 2>/dev/null | grep -c .)
+            printf '%s' "${fresh:-0}" > "$cache_file.tmp.$$" 2>/dev/null && mv -f "$cache_file.tmp.$$" "$cache_file" 2>/dev/null
+        ) &>/dev/null & disown 2>/dev/null
+    fi
+
+    if [[ "$count" =~ ^[0-9]+$ ]]; then
+        printf '%s' "$count"
+    else
+        printf '0'
+    fi
 }
 
 # Pending updates — wrapper may override. Default tries common package managers.
@@ -477,7 +551,7 @@ get_updates() {
     elif command -v dnf >/dev/null 2>&1; then
         n=$(dnf check-update 2>/dev/null | grep -cE '\.$')
     elif command -v brew >/dev/null 2>&1; then
-        n=$(brew outdated 2>/dev/null | wc -l | tr -d ' ')
+        n=$(_get_brew_updates)
     fi
     printf '%s' "${n:-N/A}"
 }
